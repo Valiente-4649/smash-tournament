@@ -203,9 +203,6 @@ function render(){
   }else if(!currentUser){
     $('regNotice').textContent='参加者用の匿名ログインを準備中です…';
     regBtn.disabled=true; regBtn.textContent='認証中…';
-  }else if(registered){
-    $('regNotice').textContent='この端末ではすでに参加登録済みです。別の名前では登録できません。';
-    regBtn.disabled=true; regBtn.textContent='登録済み';
   }else{
     $('regNotice').textContent='匿名ログイン済み。名前を入力して登録できます。';
     regBtn.disabled=false; regBtn.textContent='この名前で参加登録';
@@ -260,15 +257,9 @@ $('registerBtn').onclick=async()=>{
     await authReady;
     if(!currentUser) await signInAnonymously(auth);
     if(!currentUser) throw new Error(authError || '参加者用ログインを確認できませんでした。ページを再読み込みしてください。');
-    if(players.some(p=>p.id===currentUser.uid)){
-      notice.textContent='この端末ではすでに参加登録済みです。';
-      notice.classList.remove('hidden');
-      render();
-      return;
-    }
-    await setDoc(doc(playersRef,currentUser.uid),{uid:currentUser.uid,name,createdAt:serverTimestamp()});
+    await addDoc(playersRef,{uid:currentUser.uid,name,createdAt:serverTimestamp()});
     $('nameInput').value='';
-    $('regNotice').textContent=`「${name}」で参加登録しました！`;
+    $('regNotice').textContent=`「${name}」で参加登録しました！この端末から続けて別の参加者も登録できます。`;
     notice.textContent='登録完了！大会の参加者一覧に反映されました。';
     notice.classList.remove('hidden');
   }catch(e){
