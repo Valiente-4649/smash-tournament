@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Smash Tournament</title>
+<style>
+:root{--bg:#0b1020;--card:#141b2f;--card2:#10172a;--text:#eef2ff;--muted:#9ba6c3;--line:#2a3555;--accent:#7c9cff;--good:#38d39f;--warn:#ffc857;--danger:#ff6b7a}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#090d19,#10172a 55%,#0b1020);color:var(--text);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button,input,select{font:inherit}button{border:0;border-radius:10px;padding:10px 14px;cursor:pointer;background:#26345a;color:#fff}button.primary{background:var(--accent);color:#071022;font-weight:800}button.good{background:var(--good);color:#06150f;font-weight:800}button.danger{background:var(--danger);color:#21060b}button:disabled{opacity:.45;cursor:not-allowed}.wrap{max-width:1400px;margin:auto;padding:18px}.top{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}.brand{font-size:24px;font-weight:900}.pill{padding:5px 9px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:12px}.nav{display:flex;gap:8px;margin:16px 0;flex-wrap:wrap}.nav button.active{background:var(--accent);color:#071022}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}.card{grid-column:span 12;background:rgba(20,27,47,.92);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 10px 30px #0003}.half{grid-column:span 6}.third{grid-column:span 4}.muted{color:var(--muted)}.title{font-weight:900;font-size:18px;margin-bottom:10px}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.field{display:flex;flex-direction:column;gap:6px;margin:8px 0}.field input,.field select{background:#0b1224;border:1px solid var(--line);color:#fff;border-radius:10px;padding:10px}.notice{padding:10px 12px;border-radius:10px;background:#18233e;border:1px solid var(--line);color:#dbe4ff}.success{border-color:#246c55;background:#10271f}.error{border-color:#7a3040;background:#2a1118}.players{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}.player{padding:10px;background:#0e1528;border:1px solid var(--line);border-radius:10px}.matches{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px}.match{background:#0d1426;border:1px solid var(--line);border-radius:14px;padding:12px}.match.playing{border-color:#4f78ff;box-shadow:0 0 0 1px #4f78ff33}.match.done{opacity:.8}.match-head{display:flex;justify-content:space-between;gap:8px;align-items:center}.tag{font-size:11px;border-radius:999px;padding:4px 7px;background:#202c4a;color:#cbd6f4}.scoreline{display:grid;grid-template-columns:1fr auto;gap:5px;align-items:center;margin-top:10px}.scoreline b{font-size:16px}.score{font-size:22px;font-weight:900}.small{font-size:12px}.hidden{display:none!important}.footer{padding:28px 0;color:var(--muted);font-size:12px;text-align:center}.admin-panel{position:sticky;top:10px}
+.bracket-wrap{overflow:auto;padding:8px 2px 18px}.bracket-section{margin-bottom:24px}.bracket-section-title{font-size:17px;font-weight:900;margin:0 0 10px;color:#e8edff;display:flex;align-items:center;gap:8px}.bracket-board{display:flex;gap:26px;align-items:flex-start;min-width:max-content;padding:4px 6px 12px}.bracket-stage{width:210px;position:relative}.bracket-stage h4{margin:0 0 12px;text-align:center;color:#c7d2f4;font-size:13px}.bracket-stage-body{position:relative}.bracket-match{background:#0d1426;border:1px solid var(--line);border-radius:12px;padding:8px 10px;min-height:78px;position:relative;box-shadow:0 4px 12px #0002}.bracket-match.playing{border-color:#4f78ff;box-shadow:0 0 0 1px #4f78ff33,0 5px 16px #0004}.bracket-match.done{opacity:.78}.bracket-match.waiting{border-color:#6d7898}.bracket-match::after{content:"";position:absolute;right:-26px;top:50%;width:25px;border-top:2px solid #34405f}.bracket-stage:last-child .bracket-match::after{display:none}.bracket-player{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid #202a45}.bracket-player:last-of-type{border-bottom:0}.bracket-player.winner{font-weight:900;color:#fff}.bracket-player .bs{min-width:24px;text-align:right;font-weight:900}.bracket-num{font-size:10px;color:#8f9bb9;margin-bottom:3px}.bracket-status{font-size:10px;color:#9ba6c3;margin-top:4px}.bracket-final{border-color:#a8893d;box-shadow:0 0 0 1px #a8893d55}.bracket-empty{padding:12px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);font-size:12px}
+.mapbox{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}.maps{display:grid;grid-template-columns:repeat(5,minmax(110px,1fr));gap:8px;margin-top:8px}.mapbtn{padding:10px 6px;min-height:52px;border:1px solid var(--line);background:#141d35}.mapbtn.banned{opacity:.35;text-decoration:line-through}.mapbtn.selected{border-color:var(--good);background:#123b30}.mapbtn.current{border-color:var(--accent);box-shadow:0 0 0 1px #4f78ff33}.map-step{font-size:12px;color:#c7d2f4;margin-bottom:5px}.vote-box{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}.vote-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.vote-card{border:1px solid var(--line);border-radius:10px;padding:10px;background:#10182b}.vote-card.ok{border-color:#246c55}.modal-back{position:fixed;inset:0;background:#0009;display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}.modal{width:min(720px,100%);max-height:90vh;overflow:auto;background:#11192c;border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 20px 80px #0008}.ban-row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.turn{padding:8px 10px;border-radius:9px;background:#202c4a;color:#dce5ff}.result-buttons{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.result-buttons button{min-height:52px}
+@media(max-width:800px){.half,.third{grid-column:span 12}.wrap{padding:12px}.brand{font-size:20px}.maps{grid-template-columns:repeat(2,1fr)}.result-buttons{grid-template-columns:1fr}.bracket-col{width:200px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><div><div class="brand">🎮 Smash Tournament</div><div id="eventSub" class="muted">リアルタイム大会管理</div></div><div class="row"><span id="authPill" class="pill">接続中…</span><span id="statusPill" class="pill">大会未開始</span></div></div>
+  <div class="nav"><button id="tabView" class="active">大会を見る</button><button id="tabMaps">マップピック</button><button id="tabRegister">参加登録</button><button id="tabAdmin">管理者</button></div>
+
+  <section id="viewPage"><div class="grid">
+    <div class="card half"><div class="title">大会状況</div><div id="overview" class="muted">読み込み中…</div></div>
+    <div class="card half"><div class="title">現在プレイ中</div><div id="playing"></div></div>
+    <div class="card"><div class="title">トーナメント表</div><div id="bracket" class="bracket-wrap"></div></div>
+    <div class="card"><div class="title">試合一覧</div><div id="matchList" class="matches"></div></div>
+    <div class="card"><div class="title">参加者</div><div id="playerList" class="players"></div></div>
+  </div></section>
+
+  <section id="mapsPage" class="hidden"><div class="grid"><div class="card"><div class="title">マップピック</div><div class="muted" style="margin-bottom:12px">第1試合は5ステージ、2試合目以降は7ステージからマップピックを行います。現在プレイ中の試合ごとに、ここから操作できます。</div><div id="mapPageList" class="matches"></div></div></div></section>
+
+  <section id="registerPage" class="hidden"><div class="grid">
+    <div class="card half"><div class="title">参加登録</div><div id="regNotice" class="notice">大会情報を読み込んでいます。</div><div class="field"><label>プレイヤー名</label><input id="nameInput" maxlength="20" placeholder="例：Valiente"></div><button id="registerBtn" class="primary">この名前で参加登録</button><div id="regError" class="notice error hidden" style="margin-top:10px"></div></div>
+    <div class="card half"><div class="title">登録済み参加者</div><div id="regPlayers" class="players"></div></div>
+  </div></section>
+
+  <section id="adminPage" class="hidden"><div class="grid">
+    <div id="loginCard" class="card half"><div class="title">管理者ログイン</div><div class="field"><label>メールアドレス</label><input id="adminEmail" type="email" autocomplete="username"></div><div class="field"><label>パスワード</label><input id="adminPass" type="password" autocomplete="current-password"></div><button id="loginBtn" class="primary">ログイン</button><div id="loginMsg" class="muted" style="margin-top:8px"></div></div>
+    <div id="adminCard" class="card half hidden admin-panel"><div class="title">管理者パネル</div><div id="adminUser" class="notice success"></div><div class="field"><label>大会名</label><input id="eventNameInput" maxlength="60" value="Smash Tournament"></div><div class="field"><label>Switch / 対戦台数</label><input id="switchesInput" type="number" min="1" max="32" value="2"></div><div class="row"><button id="saveSettingsBtn">設定保存</button><button id="startBtn" class="primary">大会開始</button><button id="resetBtn" class="danger">大会リセット</button><button id="logoutBtn">ログアウト</button></div><div id="adminMsg" class="muted" style="margin-top:8px"></div></div>
+    <div id="adminMatchesCard" class="card hidden"><div class="title">試合結果・台管理</div><div id="adminMatches" class="matches"></div></div>
+  </div></section>
+
+  <div id="modalRoot"></div>
+  <div class="footer">Firebase + GitHub Pages / リアルタイム同期</div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
+import { getAuth, signInAnonymously, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
+import { getFirestore, doc, collection, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, getDocs, query, orderBy, writeBatch, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
+
+const firebaseConfig={apiKey:'AIzaSyDVOpwr89QumJoa0RH06Vk99lOvUxDee8A',authDomain:'smash-tournament-7d620.firebaseapp.com',databaseURL:'https://smash-tournament-7d620-default-rtdb.firebaseio.com',projectId:'smash-tournament-7d620',storageBucket:'smash-tournament-7d620.firebasestorage.app',messagingSenderId:'883349497921',appId:'1:883349497921:web:40e3489325f0d1770c7ec0',measurementId:'G-JQLHX9GZK6'};
+const ADMIN_UID='yBn5daLPV2bQ3q8A4nJuzDgSRfO2';
+const FIRST_MAPS=['戦場','小戦場','終点','ポケスタ2','ホロウバスティオン'];
+const LATER_MAPS=[...FIRST_MAPS,'村と街','すま村'];
+const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
+const eventRef=doc(db,'events','main'),playersRef=collection(eventRef,'players'),matchesRef=collection(eventRef,'matches');
+let currentUser=null,event={status:'registration',name:'Smash Tournament',switches:2},players=[],matches=[],unsubs=[];
+let authInitialized=false,authError='',resolveAuthReady;const authReady=new Promise(r=>resolveAuthReady=r);
+const $=id=>document.getElementById(id);const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+function admin(){return currentUser?.uid===ADMIN_UID}
+function setPage(id){['viewPage','mapsPage','registerPage','adminPage'].forEach(x=>$(x).classList.toggle('hidden',x!==id));['tabView','tabMaps','tabRegister','tabAdmin'].forEach(x=>$(x).classList.toggle('active',x.replace('tab','').toLowerCase()===id.replace('Page','').toLowerCase()))}
+$('tabView').onclick=()=>setPage('viewPage');$('tabMaps').onclick=()=>setPage('mapsPage');$('tabRegister').onclick=()=>setPage('registerPage');$('tabAdmin').onclick=()=>setPage('adminPage');
+function rounds(n){return Math.ceil(Math.log2(Math.max(2,n)))}
+function labelRound(r,total){if(r===total)return '決勝';if(r===total-1)return '準決勝';if(r===total-2)return '準々決勝';return `WB R${r}`}
+function boFor(m){return m.round>=m.wbTotal-1?'BO5':'BO3'}
+function requiredWins(m){return boFor(m)==='BO5'?3:2}
+function player(id){return players.find(p=>p.id===id)}
+function playerName(id){return player(id)?.name||(id?'未定':'未定')}
+function playerUid(id){return player(id)?.uid||null}
+function actingPlayerId(m){const saved=sessionStorage.getItem('actingPlayerId');if(saved&&(saved===m.p1||saved===m.p2)){if(admin()||playerUid(saved)===currentUser?.uid)return saved}if(!admin()&&m.p1Uid===currentUser?.uid&&m.p2Uid!==currentUser?.uid)return m.p1;if(!admin()&&m.p2Uid===currentUser?.uid&&m.p1Uid!==currentUser?.uid)return m.p2;return null}
+function chooseActingPlayer(m){const opts=[m.p1,m.p2].filter(Boolean).map(id=>`<option value="${esc(id)}">${esc(playerName(id))}</option>`).join('');$('modalRoot').innerHTML=`<div class="modal-back"><div class="modal"><div class="title">操作する参加者を選択</div><div class="notice">同じスマホで2人分を操作できます。今から操作する参加者を選んでください。</div><div class="field"><label>操作する参加者</label><select id="actingPlayerSelect">${opts}</select></div><div class="row"><button id="saveActingPlayer" class="primary">この参加者として続ける</button><button id="closeActingPlayer">閉じる</button></div></div></div>`}
+function normalizePlayers(ps){let n=1;while(n<ps.length)n*=2;return n}
+
+// 正しいダブルエリミネーションの配線。LBは2R-2ラウンドで、余分な「未定vs未定」を作らない。
+function makeBracket(ps){
+  const N=normalizePlayers(ps),R=Math.log2(N),slots=Array.from({length:N},(_,i)=>ps[i]?.id||null),out=[];
+  for(let r=1;r<=R;r++)for(let i=0;i<N/2**r;i++){
+    out.push({id:`wb${r}-${i+1}`,bracket:'WB',round:r,index:i+1,wbTotal:R,p1:r===1?slots[i*2]:null,p2:r===1?slots[i*2+1]:null,p1Uid:r===1?playerUid(slots[i*2]):null,p2Uid:r===1?playerUid(slots[i*2+1]):null,s1:0,s2:0,status:'pending',table:null,winner:null,loser:null,source1:null,source2:null,game:1,mapState:null,mapHistory:[],votes:{},hidden:false});
+  }
+  for(let r=2;r<=R;r++)for(let i=0;i<N/2**r;i++){const m=out.find(x=>x.id===`wb${r}-${i+1}`);m.source1=`wb${r-1}-${i*2+1}`;m.source2=`wb${r-1}-${i*2+2}`}
+  const sizes=[];for(let k=1;k<=Math.max(0,2*R-2);k++)sizes.push(Math.max(1,Math.floor(N/2**(Math.floor((k+1)/2)+1))));
+  for(let k=1;k<=sizes.length;k++)for(let i=0;i<sizes[k-1];i++)out.push({id:`lb${k}-${i+1}`,bracket:'LB',round:k,index:i+1,wbTotal:R,p1:null,p2:null,p1Uid:null,p2Uid:null,s1:0,s2:0,status:'pending',table:null,winner:null,loser:null,source1:null,source2:null,game:1,mapState:null,mapHistory:[],votes:{},hidden:false});
+  for(let k=1;k<=sizes.length;k++)for(let i=0;i<sizes[k-1];i++){
+    const m=out.find(x=>x.id===`lb${k}-${i+1}`);
+    if(k===1){m.source1=`loser:wb1-${i*2+1}`;m.source2=`loser:wb1-${i*2+2}`}
+    else if(k%2===0){m.source1=`lb${k-1}-${i+1}`;const wr=k/2;m.source2=wr<=R?`loser:wb${wr}-${i+1}`:null}
+    else {m.source1=`lb${k-1}-${i*2+1}`;m.source2=`lb${k-1}-${i*2+2}`}
+  }
+  out.push({id:'GF-1',bracket:'GF',round:R, index:1,wbTotal:R,p1:null,p2:null,p1Uid:null,p2Uid:null,s1:0,s2:0,status:'pending',table:null,winner:null,loser:null,source1:`wb${R}-1`,source2:sizes.length?`lb${sizes.length}-1`:null,game:1,mapState:null,mapHistory:[],votes:{},hidden:false});
+  return out;
+}
+function sourceInfo(ref){if(!ref)return null;const loser=ref.startsWith('loser:');return {id:loser?ref.slice(6):ref,loser}}
+function refreshSources(ms){
+  const map=Object.fromEntries(ms.map(m=>[m.id,m]));let changed=true,guard=0;
+  while(changed&&guard++<40){changed=false;for(const m of ms){if(m.status==='done')continue;const before=[m.p1,m.p2,m.p1Uid,m.p2Uid].join('|');
+    for(const side of ['p1','p2']){const info=sourceInfo(m[side==='p1'?'source1':'source2']);if(!info)continue;const src=map[info.id];if(src?.status==='done'){const id=info.loser?(src.loser||null):(src.winner||null);m[side]=id;m[side+'Uid']=playerUid(id)||null}}
+    if(before!==[m.p1,m.p2,m.p1Uid,m.p2Uid].join('|'))changed=true;
+  }}return ms;
+}
+function sourceReady(ref,map){const info=sourceInfo(ref);return !info||map[info.id]?.status==='done'}
+function autoByes(ms){const map=Object.fromEntries(ms.map(m=>[m.id,m]));let did=false;for(const m of ms){if(m.status!=='pending')continue;if(!sourceReady(m.source1,map)||!sourceReady(m.source2,map))continue;const[a,b]=[m.p1,m.p2];if(a&&!b){m.status='done';m.winner=a;m.loser=null;m.s1=requiredWins(m);m.s2=0;did=true}else if(!a&&b){m.status='done';m.winner=b;m.loser=null;m.s1=0;m.s2=requiredWins(m);did=true}else if(!a&&!b){m.status='done';m.hidden=true;did=true}}return did}
+function ready(m){return m.status==='pending'&&!!m.p1&&!!m.p2}
+function matchOrder(m){if(m.bracket==='WB')return m.round*1000+m.index;if(m.bracket==='LB')return 10000+m.round*1000+m.index;return 30000}
+function stageName(m){return m.bracket==='WB'?labelRound(m.round,m.wbTotal):m.bracket==='LB'?`敗者側 R${m.round}`:'グランドファイナル'}
+function updateStatuses(ms){for(const m of ms){if(m.status==='done')continue;if(ready(m)&&!m.table&&m.status==='pending')m.status='waiting'}return ms}
+
+async function reconcileAndAssign(){
+  if(!admin()||event.status!=='started')return;
+  const fresh=matches.map(m=>({...m,mapHistory:Array.isArray(m.mapHistory)?m.mapHistory:[],votes:m.votes||{}}));refreshSources(fresh);autoByes(fresh);updateStatuses(fresh);
+  const batch=writeBatch(db);let writes=0;
+  for(const m of fresh){const old=matches.find(x=>x.id===m.id)||{};const patch={};for(const k of ['p1','p2','p1Uid','p2Uid','status','winner','loser','s1','s2'])if(m[k]!==old[k])patch[k]=m[k]??null;if(Object.keys(patch).length){batch.update(doc(matchesRef,m.id),patch);writes++}}
+  if(writes)await batch.commit();
+  const occupied=new Set(fresh.filter(m=>m.status==='playing'&&m.table).map(m=>m.table));const free=[];for(let i=1;i<=Number(event.switches||1);i++)if(!occupied.has(i))free.push(i);
+  const candidates=fresh.filter(m=>m.status==='waiting'&&m.p1&&m.p2).sort((a,b)=>matchOrder(a)-matchOrder(b));const b2=writeBatch(db);let w2=0;for(const m of candidates){if(!free.length)break;b2.update(doc(matchesRef,m.id),{status:'playing',table:free.shift(),game:m.game||1,mapState:m.mapState||newMapState(1)});w2++}if(w2)await b2.commit();
+}
+function newMapState(game,previousWinner=null,previousLoser=null){
+  return {game,phase:game===1?'p1ban':'winnerBan',available:[...(game===1?FIRST_MAPS:LATER_MAPS)],bannedByP1:[],bannedByP2:[],selected:null,turn:game===1?'p1':'winner',previousWinner,previousLoser,chooser:null};
+}
+function currentMap(m){return m.mapState?.selected||null}
+function mapPhaseText(m){const s=m.mapState;if(!s)return 'マップピック待ち';if(s.selected)return `第${s.game}試合：${s.selected}`;if(s.phase==='p1ban')return '先行：1つ拒否';if(s.phase==='p2ban')return '後攻：2つ拒否';if(s.phase==='p1pick')return '先行：残り2つから選択';if(s.phase==='winnerBan')return '前試合の勝者：2つ拒否';if(s.phase==='loserPick')return '前試合の敗者：1つ選択';return 'マップピック'}
+function mapButtons(m){const s=m.mapState;if(!s)return '';const pool=s.game===1?FIRST_MAPS:LATER_MAPS;return `<div class="map-step">${esc(mapPhaseText(m))}</div><div class="maps">${pool.map(x=>{const banned=!s.available?.includes(x),selected=s.selected===x;return `<button class="mapbtn ${banned?'banned':''} ${selected?'selected':''}" data-map-match="${m.id}" data-map-name="${esc(x)}" ${banned||selected?'disabled':''}>${esc(x)}</button>`}).join('')}</div>`}
+function mapModal(m){const s=m.mapState||newMapState(m.game||1);const adminMode=admin();let who='';if(s.turn==='p1')who=playerName(m.p1);else if(s.turn==='p2')who=playerName(m.p2);else if(s.turn==='winner')who=playerName(s.previousWinner);else if(s.turn==='loser')who=playerName(s.previousLoser);
+  return `<div class="modal-back"><div class="modal"><div class="title">マップピック：${esc(stageName(m))} / 第${s.game}試合</div><div class="notice">${esc(mapPhaseText(m))}${who?` — ${esc(who)}の操作`:''}</div><div class="ban-row">${s.bannedByP1?.length?`<span class="turn">${s.game===1?'先行拒否':'前試合の勝者拒否'}：${esc(s.bannedByP1.join(' / '))}</span>`:''}${s.bannedByP2?.length?`<span class="turn">後攻拒否：${esc(s.bannedByP2.join(' / '))}</span>`:''}</div>${mapButtons(m)}<div class="row" style="margin-top:14px"><button id="closeMapBtn">閉じる</button></div><div class="small muted" style="margin-top:10px">第1試合：先行1拒否 → 後攻2拒否 → 先行が残り2つから選択。第2試合以降：前試合の勝者2拒否 → 敗者1選択。</div></div></div>`}
+function openMap(m){$('modalRoot').innerHTML=mapModal(m)}
+function canMapAct(m){return !!currentUser&&!!actingPlayerId(m)}
+async function mapAction(m,map){if(!canMapAct(m)||!m.mapState)return;const s=structuredClone(m.mapState);if(!s.available.includes(map)||s.selected)return;
+  if(s.phase==='p1ban'&&actingPlayerId(m)===m.p1){s.available=s.available.filter(x=>x!==map);s.bannedByP1.push(map);s.phase='p2ban';s.turn='p2'}
+  else if(s.phase==='p2ban'&&actingPlayerId(m)===m.p2){s.available=s.available.filter(x=>x!==map);s.bannedByP2.push(map);if(s.bannedByP2.length<2){s.turn='p2'}else{s.phase='p1pick';s.turn='p1'}}
+  else if(s.phase==='p1pick'&&actingPlayerId(m)===m.p1){s.selected=map;s.available=[map];s.chooser=m.p1;s.phase='selected';s.turn=null}
+  else if(s.phase==='winnerBan'&&s.previousWinner&&actingPlayerId(m)===s.previousWinner){s.available=s.available.filter(x=>x!==map);s.bannedByP1.push(map);if(s.bannedByP1.length<2){s.turn='winner'}else{s.phase='loserPick';s.turn='loser'}}
+  else if(s.phase==='loserPick'&&s.previousLoser&&actingPlayerId(m)===s.previousLoser){s.selected=map;s.available=[map];s.chooser=s.previousLoser;s.phase='selected';s.turn=null}
+  else {alert('今はあなたの操作ではありません。');return}
+  await updateDoc(doc(matchesRef,m.id),{mapState:s});openMap({...m,mapState:s});render();
+}
+async function submitVote(m,winnerId){
+  if(!currentUser||(!m.p1Uid&&!m.p2Uid)||!canMapAct(m))return;
+  if(!m.mapState?.selected)return alert('先にマップピックを完了してください。');
+  const actor=actingPlayerId(m);const side=actor===m.p1?'p1':actor===m.p2?'p2':null;if(!side)return alert('この試合の参加者として認識できません。');
+  const votes={...(m.votes||{})};votes[side]={winnerId,uid:currentUser.uid,at:Date.now()};
+  const v1=votes.p1,v2=votes.p2;let resultPatch={votes};
+  if(v1&&v2&&v1.winnerId===v2.winnerId){
+    const gameWinner=v1.winnerId,gameLoser=gameWinner===m.p1?m.p2:m.p1;
+    const nextS1=m.s1+(gameWinner===m.p1?1:0),nextS2=m.s2+(gameWinner===m.p2?1:0),need=requiredWins(m);
+    if(nextS1>=need||nextS2>=need){
+      resultPatch={status:'done',table:null,winner:gameWinner,loser:gameLoser,s1:nextS1,s2:nextS2,votes,game:m.game||1,mapState:m.mapState,finishedAt:serverTimestamp()};
+    }else{
+      const nextGame=(m.game||1)+1;
+      resultPatch={status:'playing',table:m.table,winner:null,loser:null,s1:nextS1,s2:nextS2,votes:{},game:nextGame,mapState:newMapState(nextGame,gameWinner,gameLoser)};
+    }
+  }
+  await updateDoc(doc(matchesRef,m.id),resultPatch);if(resultPatch.status==='done')setTimeout(reconcileAndAssign,200);render();
+}
+function voteModal(m){const actor=actingPlayerId(m);const v=m.votes||{};return `<div class="modal-back"><div class="modal"><div class="title">第${m.game||1}試合の結果を投票</div><div class="notice">${esc(playerName(m.p1))} vs ${esc(playerName(m.p2))} / ${boFor(m)}　現在 ${m.s1}-${m.s2}</div><p class="small muted">このゲームで勝った選手を選んでください。両選手の投票が一致するとゲーム結果が確定し、必要なら次のゲームへ進みます。</p><div class="result-buttons">${[m.p1,m.p2].map(w=>`<button data-vote-match="${m.id}" data-winner="${w}">${esc(playerName(w))} が第${m.game||1}試合に勝利</button>`).join('')}</div><div class="vote-grid" style="margin-top:12px"><div class="vote-card ${v.p1?'ok':''}"><b>${esc(playerName(m.p1))}</b><div class="small">${v.p1?`投票済み：${esc(playerName(v.p1.winnerId))}`:'未投票'}</div></div><div class="vote-card ${v.p2?'ok':''}"><b>${esc(playerName(m.p2))}</b><div class="small">${v.p2?`投票済み：${esc(playerName(v.p2.winnerId))}`:'未投票'}</div></div></div><div class="row" style="margin-top:14px"><button id="closeVoteBtn">閉じる</button></div></div></div>`}
+function openVote(m){$('modalRoot').innerHTML=voteModal(m)}
+
+function matchHTML(m,adminMode){
+  const state=m.status==='playing'?`台${m.table}・プレイ中`:m.status==='waiting'?'待機中':m.status==='done'?'終了':'次待ち';
+  const votes=m.votes||{},both=votes.p1&&votes.p2;
+  let controls='';
+  if(m.status==='playing'&&m.p1&&m.p2){controls+=`<div class="row" style="margin-top:10px">${m.mapState?.selected?`<span class="pill">${esc(m.mapState.selected)}</span>`:''}<button data-open-map="${m.id}">マップピック</button><button data-open-vote="${m.id}">結果投票</button></div>`}
+  if(adminMode&&m.status==='playing'&&m.p1&&m.p2){controls+=`<div class="small muted" style="margin-top:8px">管理者確認：${both?'両者投票済み':'投票待ち'}</div>`}
+  return `<div class="match ${m.status==='playing'?'playing':''} ${m.status==='done'?'done':''}"><div class="match-head"><b>${esc(stageName(m))} #${m.index}</b><span class="tag">${state} / ${boFor(m)}</span></div><div class="scoreline"><div>${esc(playerName(m.p1))}<br>${esc(playerName(m.p2))}</div><div class="score">${m.s1} - ${m.s2}</div></div>${m.winner?`<div class="small muted">勝者：${esc(playerName(m.winner))}</div>`:''}${m.status==='playing'?`<div class="small muted" style="margin-top:6px">${m.mapState?.selected?`現在のマップ：${esc(m.mapState.selected)}`:mapPhaseText(m)}</div>`:''}${controls}</div>`;
+}
+function bracketCard(m,final=false){
+  const state=m.status==='playing'?`台${m.table}・プレイ中`:m.status==='waiting'?'待機中':m.status==='done'?'終了':'次待ち';
+  return `<div class="bracket-match ${m.status==='playing'?'playing':''} ${m.status==='waiting'?'waiting':''} ${m.status==='done'?'done':''} ${final?'bracket-final':''}">
+    <div class="bracket-num">試合 #${m.index}${m.table?` ・ 台${m.table}`:''}</div>
+    <div class="bracket-player ${m.winner===m.p1?'winner':''}"><span>${esc(playerName(m.p1))}</span><span class="bs">${m.s1}</span></div>
+    <div class="bracket-player ${m.winner===m.p2?'winner':''}"><span>${esc(playerName(m.p2))}</span><span class="bs">${m.s2}</span></div>
+    <div class="bracket-status">${state} / ${boFor(m)}${m.mapState?.selected?` ・ 🗺️ ${esc(m.mapState.selected)}`:''}</div>
+  </div>`;
+}
+function renderBracket(){
+  if(!matches.length){$('bracket').innerHTML='<div class="muted">大会開始後にトーナメントが表示されます。</div>';return}
+  const wb=matches.filter(m=>m.bracket==='WB'&&!m.hidden).sort((a,b)=>a.round-b.round||a.index-b.index);
+  const lb=matches.filter(m=>m.bracket==='LB'&&!m.hidden).sort((a,b)=>a.round-b.round||a.index-b.index);
+  const gf=matches.filter(m=>m.bracket==='GF');
+  const wbMax=Math.max(0,...wb.map(m=>m.round)),lbMax=Math.max(0,...lb.map(m=>m.round));
+  const stageHtml=(list,max,prefix)=>Array.from({length:max},(_,ri)=>{
+    const r=ri+1,ms=list.filter(m=>m.round===r); if(!ms.length)return '';
+    const pad=Math.pow(2,Math.max(0,r-1))*12;
+    const gap=Math.pow(2,Math.max(0,r-1))*18;
+    return `<div class="bracket-stage"><h4>${prefix}${r===max?' 決勝':r===max-1?' 準決勝':` R${r}`}</h4><div class="bracket-stage-body" style="padding-top:${pad}px">${ms.map((m,i)=>`<div style="margin-bottom:${gap}px">${bracketCard(m)}</div>`).join('')}</div></div>`;
+  }).join('');
+  $('bracket').innerHTML=`<div class="bracket-section"><div class="bracket-section-title">🏆 勝者側トーナメント</div><div class="bracket-board">${stageHtml(wb,wbMax,'')}${gf.length?`<div class="bracket-stage"><h4>グランドファイナル</h4><div class="bracket-stage-body" style="padding-top:72px">${gf.map(m=>bracketCard(m,true)).join('')}</div></div>`:''}</div></div>
+  <div class="bracket-section"><div class="bracket-section-title">💀 敗者側トーナメント</div><div class="bracket-board">${stageHtml(lb,lbMax,'敗者側')}</div></div>`;
+}
+function render(){
+  $('eventSub').textContent=event.name||'Smash Tournament';$('statusPill').textContent=event.status==='started'?'大会進行中':'参加受付中';
+  const playing=matches.filter(m=>m.status==='playing');$('playing').innerHTML=playing.length?playing.map(m=>`<div class="match playing"><div class="match-head"><b>台${m.table}</b><span class="tag">${esc(boFor(m))}</span></div><div class="scoreline"><div>${esc(playerName(m.p1))}<br>${esc(playerName(m.p2))}</div><div class="score">${m.s1} - ${m.s2}</div></div><div class="small muted">${m.mapState?.selected?`🗺️ ${esc(m.mapState.selected)}`:mapPhaseText(m)}</div></div>`).join(''):'<div class="muted">現在プレイ中の試合はありません。</div>';
+  $('overview').innerHTML=`<div class="row"><span class="pill">${event.status==='started'?'進行中':'受付中'}</span><span class="pill">参加者 ${players.length}人</span><span class="pill">台 ${Number(event.switches||1)}台</span><span class="pill">準決勝までBO3</span><span class="pill">準決勝からBO5</span></div><p class="muted">${event.status==='started'?'対戦可能になった試合を上から順番に台へ自動割り当てします。結果は両選手の投票一致で確定します。':'参加登録後、管理者が「大会開始」を押すと対戦表が生成されます。'}</p>`;
+  $('playerList').innerHTML=players.length?players.map((p,i)=>`<div class="player"><b>${i+1}. ${esc(p.name)}</b></div>`).join(''):'<div class="muted">まだ参加者はいません。</div>';$('regPlayers').innerHTML=$('playerList').innerHTML;
+  const mapPlaying=matches.filter(m=>m.status==='playing'&&!m.hidden);$('mapPageList').innerHTML=mapPlaying.length?mapPlaying.map(m=>`<div class="match playing"><div class="match-head"><b>台${m.table}：${esc(playerName(m.p1))} vs ${esc(playerName(m.p2))}</b><span class="tag">第${m.game||1}試合 / ${esc(boFor(m))}</span></div><div class="small muted" style="margin-top:6px">${esc(mapPhaseText(m))}</div><div class="row" style="margin-top:10px"><button data-open-map="${m.id}" class="primary">マップピックを開く</button>${m.mapState?.selected?`<span class="pill">選択：${esc(m.mapState.selected)}</span>`:''}</div></div>`).join(''):'<div class="muted">現在プレイ中の試合はありません。</div>';
+  const sorted=[...matches].filter(m=>!m.hidden).sort((a,b)=>matchOrder(a)-matchOrder(b));$('matchList').innerHTML=sorted.length?sorted.map(m=>matchHTML(m,false)).join(''):'<div class="muted">大会開始後に試合が表示されます。</div>';
+  if(admin())$('adminMatches').innerHTML=sorted.map(m=>matchHTML(m,true)).join('');
+  renderBracket();$('eventNameInput').value=event.name||'';$('switchesInput').value=event.switches||2;
+  const regBtn=$('registerBtn');if(event.status==='started'){ $('regNotice').textContent='大会は開始済みのため参加登録できません。';regBtn.disabled=true;regBtn.textContent='参加受付終了';}else if(admin()){ $('regNotice').textContent='管理者としてログイン中です。参加登録する場合は管理者からログアウトしてください。';regBtn.disabled=true;regBtn.textContent='管理者ログイン中';}else if(!currentUser){$('regNotice').textContent='参加者用の匿名ログインを準備中です…';regBtn.disabled=true;regBtn.textContent='認証中…';}else{$('regNotice').textContent='匿名ログイン済み。名前を入力して登録できます。';regBtn.disabled=false;regBtn.textContent='この名前で参加登録';}
+}
+
+async function bootstrapAnon(){try{await authReady;if(currentUser)return;await signInAnonymously(auth)}catch(e){authError=`${e.code||'unknown'}: ${e.message||e}`;$('authPill').textContent='匿名ログイン失敗';$('regNotice').textContent=`匿名ログインに失敗しました。${e.code?` (${e.code})`:''}`;console.error(e);render()}}
+onAuthStateChanged(auth,u=>{currentUser=u;if(!authInitialized){authInitialized=true;resolveAuthReady(u)}if(u)authError='';$('authPill').textContent=u?(admin()?'管理者ログイン済み':'参加者モード'):'未ログイン';$('loginCard').classList.toggle('hidden',admin());$('adminCard').classList.toggle('hidden',!admin());$('adminMatchesCard').classList.toggle('hidden',!admin());if(admin())$('adminUser').textContent=`管理者UID: ${u.uid}`;render()});
+function subscribe(){unsubs.forEach(f=>f());unsubs=[];unsubs.push(onSnapshot(eventRef,s=>{event=s.exists()?{...event,...s.data()}:{...event};render()}));unsubs.push(onSnapshot(query(playersRef,orderBy('createdAt','asc')),s=>{players=s.docs.map(d=>({id:d.id,...d.data()}));render()}));unsubs.push(onSnapshot(matchesRef,s=>{matches=s.docs.map(d=>({id:d.id,...d.data()}));render()}))}
+$('registerBtn').onclick=async()=>{const btn=$('registerBtn'),notice=$('regError');notice.classList.add('hidden');const name=$('nameInput').value.trim();if(!name){notice.textContent='プレイヤー名を入力してください。';notice.classList.remove('hidden');return}if(event.status==='started'){notice.textContent='大会はすでに開始されています。';notice.classList.remove('hidden');return}if(admin()){notice.textContent='管理者ログイン中は参加登録できません。';notice.classList.remove('hidden');return}btn.disabled=true;btn.textContent='登録中…';try{await authReady;if(!currentUser)await signInAnonymously(auth);if(!currentUser)throw Error(authError||'匿名ログインを確認できませんでした。');await addDoc(playersRef,{uid:currentUser.uid,name,createdAt:serverTimestamp()});$('nameInput').value='';$('regNotice').textContent=`「${name}」で参加登録しました！続けて別の参加者も登録できます。`;notice.textContent='登録完了！';notice.classList.remove('hidden')}catch(e){notice.textContent=`登録に失敗しました。${e.code?` (${e.code})`:''} ${e.message||''}`;notice.classList.remove('hidden')}finally{render()}};
+$('loginBtn').onclick=async()=>{try{await signInWithEmailAndPassword(auth,$('adminEmail').value.trim(),$('adminPass').value);$('loginMsg').textContent='ログインしました。'}catch(e){$('loginMsg').textContent='ログイン失敗: '+e.message}};
+$('logoutBtn').onclick=()=>signOut(auth).then(()=>bootstrapAnon());
+$('saveSettingsBtn').onclick=async()=>{if(!admin())return;const name=$('eventNameInput').value.trim()||'Smash Tournament',sw=Math.max(1,Math.min(32,Number($('switchesInput').value)||1));await setDoc(eventRef,{name,switches:sw,status:event.status||'registration'},{merge:true});$('adminMsg').textContent='設定を保存しました。';setTimeout(reconcileAndAssign,100)};
+$('startBtn').onclick=async()=>{if(confirm(`参加者${players.length}人で大会を開始します。開始後は参加登録できません。よろしいですか？`))await startTournament()};
+$('resetBtn').onclick=async()=>{if(!admin())return;if(!confirm('大会をリセットして、試合データと参加者名簿をすべて削除し、再び参加受付に戻します。よろしいですか？'))return;try{await deleteAllMatches();await deleteAllPlayers();await setDoc(eventRef,{status:'registration',startedAt:null,playerCount:0},{merge:true});$('adminMsg').textContent='大会をリセットしました。試合データと参加者名簿を削除しました。';}catch(e){console.error(e);$('adminMsg').textContent='リセットに失敗しました: '+e.message;}};
+async function startTournament(){if(!admin()||event.status==='started')return;if(players.length<2){$('adminMsg').textContent='参加者が2人以上必要です。';return}const built=makeBracket(players);await deleteAllMatches();const batch=writeBatch(db);built.forEach(m=>batch.set(doc(matchesRef,m.id),m));batch.set(eventRef,{status:'started',startedAt:serverTimestamp(),playerCount:players.length},{merge:true});await batch.commit();$('adminMsg').textContent='大会を開始しました！';setTimeout(reconcileAndAssign,300)}
+async function deleteAllMatches(){const snap=await getDocs(matchesRef);const b=writeBatch(db);snap.forEach(d=>b.delete(d.ref));await b.commit()}
+async function deleteAllPlayers(){const snap=await getDocs(playersRef);if(snap.empty)return;let batch=writeBatch(db),count=0;for(const d of snap.docs){batch.delete(d.ref);count++;if(count===450){await batch.commit();batch=writeBatch(db);count=0}}if(count)await batch.commit()}
+document.addEventListener('click',async e=>{const close=e.target.closest('#closeMapBtn,#closeVoteBtn');if(close){$('modalRoot').innerHTML='';return}const saveActor=e.target.closest('#saveActingPlayer');if(saveActor){const id=$('actingPlayerSelect').value;sessionStorage.setItem('actingPlayerId',id);$('modalRoot').innerHTML='';return}const closeActor=e.target.closest('#closeActingPlayer');if(closeActor){$('modalRoot').innerHTML='';return}const mb=e.target.closest('[data-open-map]');if(mb){const m=matches.find(x=>x.id===mb.dataset.openMap);if(m){if((admin()||m.p1Uid===m.p2Uid)&&!actingPlayerId(m))chooseActingPlayer(m);else openMap(m)}return}const mapb=e.target.closest('[data-map-match]');if(mapb){const m=matches.find(x=>x.id===mapb.dataset.mapMatch);if(m)try{await mapAction(m,mapb.dataset.mapName)}catch(err){alert('マップ操作に失敗しました: '+err.message)}return}const vb=e.target.closest('[data-open-vote]');if(vb){const m=matches.find(x=>x.id===vb.dataset.openVote);if(m){if((admin()||m.p1Uid===m.p2Uid)&&!actingPlayerId(m))chooseActingPlayer(m);else openVote(m)}return}const vote=e.target.closest('[data-vote-match]');if(vote){const m=matches.find(x=>x.id===vote.dataset.voteMatch);if(m)try{await submitVote(m,vote.dataset.winner)}catch(err){alert('投票に失敗しました: '+err.message)}return}});
+subscribe();bootstrapAnon();
+</script>
+</body></html>
