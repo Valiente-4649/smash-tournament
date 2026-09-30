@@ -10,7 +10,7 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="top"><div><div class="brand">🎮 Smash Tournament</div><div id="eventSub" class="muted">リアルタイム大会管理</div></div><div class="row"><span id="authPill" class="pill">接続中…</span><span id="statusPill" class="pill">大会未開始</span></div></div>
+  <div class="top"><div><div class="brand">🎮 Smash Tournament</div><div id="eventSub" class="muted">リアルタイム大会管理</div></div><div class="row"><span id="authPill" class="pill" title="Firebase Authentication status">接続中…</span><span id="statusPill" class="pill">大会未開始</span></div></div>
   <div class="nav"><button id="tabView" class="active">大会を見る</button><button id="tabRegister">参加登録</button><button id="tabAdmin">管理者</button></div>
 
   <section id="viewPage">
@@ -42,12 +42,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.19.0/fireba
 import { getAuth, signInAnonymously, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
 import { getFirestore, doc, collection, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, getDocs, query, orderBy, writeBatch, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const firebaseConfig={apiKey:'AIzaSyDVOp89QumJoa0RH06Vk99lOvUxDee8A',authDomain:'smash-tournament-7d620.firebaseapp.com',databaseURL:'https://smash-tournament-7d620-default-rtdb.firebaseio.com',projectId:'smash-tournament-7d620',storageBucket:'smash-tournament-7d620.firebasestorage.app',messagingSenderId:'883349497921',appId:'1:883349497921:web:40e3489325f0d1770c7ec0',measurementId:'G-JQLHX9GZK6'};
+const firebaseConfig={apiKey:'AIzaSyDVOpwr89QumJoa0RH06Vk99lOvUxDee8A',authDomain:'smash-tournament-7d620.firebaseapp.com',databaseURL:'https://smash-tournament-7d620-default-rtdb.firebaseio.com',projectId:'smash-tournament-7d620',storageBucket:'smash-tournament-7d620.firebasestorage.app',messagingSenderId:'883349497921',appId:'1:883349497921:web:40e3489325f0d1770c7ec0',measurementId:'G-JQLHX9GZK6'};
 const ADMIN_UID='yBn5daLPV2bQ3q8A4nJuzDgSRfO2';
 const app=initializeApp(firebaseConfig), auth=getAuth(app), db=getFirestore(app);
 const eventRef=doc(db,'events','main'); const playersRef=collection(eventRef,'players'); const matchesRef=collection(eventRef,'matches');
 let currentUser=null,event={status:'registration',name:'Smash Tournament',switches:2},players=[],matches=[],unsubs=[];
 let authInitialized=false;
+let authError='';
 let resolveAuthReady;
 const authReady=new Promise(resolve=>{resolveAuthReady=resolve});
 const $=id=>document.getElementById(id); const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -229,7 +230,8 @@ async function bootstrapAnon(){
     await signInAnonymously(auth);
   }catch(e){
     $('authPill').textContent='匿名ログイン失敗';
-    $('regNotice').textContent='匿名ログインに失敗しました。ページを再読み込みしてください。';
+    authError=`${e.code||'unknown'}: ${e.message||e}`;
+    $('regNotice').textContent=`匿名ログインに失敗しました。${e.code?` (${e.code})`:''} ${e.message||''}`;
     console.error('Anonymous auth error:',e.code,e.message,e);
     render();
   }
@@ -237,6 +239,7 @@ async function bootstrapAnon(){
 onAuthStateChanged(auth,u=>{
   currentUser=u;
   if(!authInitialized){authInitialized=true;resolveAuthReady(u);}
+  if(u) authError='';
   $('authPill').textContent=u?(admin()?'管理者ログイン済み':'参加者モード'):'未ログイン';
   $('loginCard').classList.toggle('hidden',admin());
   $('adminCard').classList.toggle('hidden',!admin());
@@ -256,7 +259,7 @@ $('registerBtn').onclick=async()=>{
   try{
     await authReady;
     if(!currentUser) await signInAnonymously(auth);
-    if(!currentUser) throw new Error('参加者用ログインを確認できませんでした。ページを再読み込みしてください。');
+    if(!currentUser) throw new Error(authError || '参加者用ログインを確認できませんでした。ページを再読み込みしてください。');
     if(players.some(p=>p.id===currentUser.uid)){
       notice.textContent='この端末ではすでに参加登録済みです。';
       notice.classList.remove('hidden');
