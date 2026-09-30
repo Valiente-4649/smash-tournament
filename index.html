@@ -24,7 +24,7 @@
   </section>
 
   <section id="registerPage" class="hidden"><div class="grid">
-    <div class="card half"><div class="title">参加登録</div><div id="regNotice" class="notice">大会情報を読み込んでいます。</div><div class="field"><label>プレイヤー名</label><input id="nameInput" maxlength="20" placeholder="例：Valiente"></div><button id="registerBtn" class="primary">この名前で参加登録</button></div>
+    <div class="card half"><div class="title">参加登録</div><div id="regNotice" class="notice">大会情報を読み込んでいます。</div><div class="field"><label>プレイヤー名</label><input id="nameInput" maxlength="20" placeholder="例：Valiente"></div><button id="registerBtn" class="primary">この名前で参加登録</button><div id="regError" class="notice error hidden" style="margin-top:10px"></div></div>
     <div class="card half"><div class="title">登録済み参加者</div><div id="regPlayers" class="players"></div></div>
   </div></section>
 
@@ -47,6 +47,9 @@ const ADMIN_UID='yBn5daLPV2bQ3q8A4nJuzDgSRfO2';
 const app=initializeApp(firebaseConfig), auth=getAuth(app), db=getFirestore(app);
 const eventRef=doc(db,'events','main'); const playersRef=collection(eventRef,'players'); const matchesRef=collection(eventRef,'matches');
 let currentUser=null,event={status:'registration',name:'Smash Tournament',switches:2},players=[],matches=[],unsubs=[];
+let authInitialized=false;
+let resolveAuthReady;
+const authReady=new Promise(resolve=>{resolveAuthReady=resolve});
 const $=id=>document.getElementById(id); const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 function admin(){return currentUser?.uid===ADMIN_UID}
 function setPage(id){['viewPage','registerPage','adminPage'].forEach(x=>$(x).classList.toggle('hidden',x!==id));['tabView','tabRegister','tabAdmin'].forEach(x=>$(x).classList.toggle('active',x.replace('tab','').toLowerCase()===id.replace('Page','').toLowerCase()))}
@@ -188,7 +191,24 @@ function render(){
   if(admin()){$('adminMatches').innerHTML=sorted.map(m=>matchHTML(m,true)).join('');}
   renderBracket();
   $('eventNameInput').value=event.name||'';$('switchesInput').value=event.switches||2;
-  const registered=currentUser && players.some(p=>p.id===currentUser.uid); $('regNotice').textContent=event.status==='started'?'大会は開始済みのため参加登録できません。':registered?'この端末ではすでに参加登録済みです。':'匿名ログイン済み。名前を入力して登録できます。'; $('registerBtn').disabled=event.status==='started'||registered;
+  const registered=currentUser && players.some(p=>p.id===currentUser.uid);
+  const regBtn=$('registerBtn');
+  if(event.status==='started'){
+    $('regNotice').textContent='大会は開始済みのため参加登録できません。';
+    regBtn.disabled=true; regBtn.textContent='参加受付終了';
+  }else if(admin()){
+    $('regNotice').textContent='管理者としてログイン中です。参加登録する場合は管理者からログアウトしてください。';
+    regBtn.disabled=true; regBtn.textContent='管理者ログイン中';
+  }else if(!currentUser){
+    $('regNotice').textContent='参加者用の匿名ログインを準備中です…';
+    regBtn.disabled=true; regBtn.textContent='認証中…';
+  }else if(registered){
+    $('regNotice').textContent='この端末ではすでに参加登録済みです。別の名前では登録できません。';
+    regBtn.disabled=true; regBtn.textContent='登録済み';
+  }else{
+    $('regNotice').textContent='匿名ログイン済み。名前を入力して登録できます。';
+    regBtn.disabled=false; regBtn.textContent='この名前で参加登録';
+  }
 }
 function matchHTML(m,adminMode){
   const round=m.bracket==='WB'?labelRound(m.round,m.wbTotal):m.bracket==='LB'?`LB R${m.round}`:'決勝'; const state=m.status==='playing'?`台${m.table}・プレイ中`:m.status==='waiting'?'待機中':m.status==='done'?'終了':'未確定';
@@ -201,10 +221,61 @@ function renderBracket(){
  const groups=[];for(let r=1;r<=Math.max(1,...wb.map(m=>m.round));r++)groups.push({name:labelRound(r,Math.max(...wb.map(m=>m.wbTotal))),ms:wb.filter(m=>m.round===r)});for(let r=1;r<=Math.max(0,...lb.map(m=>m.round));r++)groups.push({name:`敗者 R${r}`,ms:lb.filter(m=>m.round===r)});if(gf.length)groups.push({name:'決勝',ms:gf});
  $('bracket').innerHTML='<div class="rounds">'+groups.map(g=>`<div class="round"><h4>${g.name}</h4>${g.ms.map(m=>`<div class="match ${m.status==='playing'?'playing':''}"><div class="small">${m.status==='playing'?`台${m.table}・`:''}${m.status}</div><b>${esc(playerName(m.p1))}</b> <span class="score">${m.s1}</span><br><b>${esc(playerName(m.p2))}</b> <span class="score">${m.s2}</span></div>`).join('')}</div>`).join('')+'</div>';
 }
-async function bootstrapAnon(){try{await signInAnonymously(auth)}catch(e){$('authPill').textContent='匿名ログイン失敗';console.error(e)}}
-onAuthStateChanged(auth,u=>{currentUser=u;$('authPill').textContent=u?(admin()?'管理者ログイン済み':'参加者モード'):'未ログイン';$('loginCard').classList.toggle('hidden',admin());$('adminCard').classList.toggle('hidden',!admin());$('adminMatchesCard').classList.toggle('hidden',!admin());if(admin())$('adminUser').textContent=`管理者UID: ${u.uid}`;render();});
+async function bootstrapAnon(){
+  try{
+    // Firebase Authの初期化完了を待つ。管理者がログイン済みなら匿名ログインを上書きしない。
+    await authReady;
+    if(currentUser) return;
+    await signInAnonymously(auth);
+  }catch(e){
+    $('authPill').textContent='匿名ログイン失敗';
+    $('regNotice').textContent='匿名ログインに失敗しました。ページを再読み込みしてください。';
+    console.error('Anonymous auth error:',e.code,e.message,e);
+    render();
+  }
+}
+onAuthStateChanged(auth,u=>{
+  currentUser=u;
+  if(!authInitialized){authInitialized=true;resolveAuthReady(u);}
+  $('authPill').textContent=u?(admin()?'管理者ログイン済み':'参加者モード'):'未ログイン';
+  $('loginCard').classList.toggle('hidden',admin());
+  $('adminCard').classList.toggle('hidden',!admin());
+  $('adminMatchesCard').classList.toggle('hidden',!admin());
+  if(admin())$('adminUser').textContent=`管理者UID: ${u.uid}`;
+  render();
+});
 function subscribe(){unsubs.forEach(f=>f());unsubs=[];unsubs.push(onSnapshot(eventRef,s=>{event=s.exists()?{...event,...s.data()}:{...event};render()}));unsubs.push(onSnapshot(query(playersRef,orderBy('createdAt','asc')),s=>{players=s.docs.map(d=>({id:d.id,...d.data()}));render()}));unsubs.push(onSnapshot(matchesRef,s=>{matches=s.docs.map(d=>({id:d.id,...d.data()}));render()}));}
-$('registerBtn').onclick=async()=>{const name=$('nameInput').value.trim();if(!name)return alert('名前を入力してください。');if(event.status==='started')return alert('大会はすでに開始されています。');if(players.some(p=>p.id===currentUser?.uid))return alert('すでに登録済みです。');try{await setDoc(doc(playersRef,currentUser.uid),{uid:currentUser.uid,name,createdAt:serverTimestamp()});$('nameInput').value='';}catch(e){alert('登録に失敗しました: '+e.message)}};
+$('registerBtn').onclick=async()=>{
+  const btn=$('registerBtn'), notice=$('regError');
+  notice.classList.add('hidden');
+  const name=$('nameInput').value.trim();
+  if(!name){notice.textContent='プレイヤー名を入力してください。';notice.classList.remove('hidden');return;}
+  if(event.status==='started'){notice.textContent='大会はすでに開始されています。';notice.classList.remove('hidden');return;}
+  if(admin()){notice.textContent='管理者ログイン中は参加登録できません。ログアウトしてから登録してください。';notice.classList.remove('hidden');return;}
+  btn.disabled=true; btn.textContent='登録中…';
+  try{
+    await authReady;
+    if(!currentUser) await signInAnonymously(auth);
+    if(!currentUser) throw new Error('参加者用ログインを確認できませんでした。ページを再読み込みしてください。');
+    if(players.some(p=>p.id===currentUser.uid)){
+      notice.textContent='この端末ではすでに参加登録済みです。';
+      notice.classList.remove('hidden');
+      render();
+      return;
+    }
+    await setDoc(doc(playersRef,currentUser.uid),{uid:currentUser.uid,name,createdAt:serverTimestamp()});
+    $('nameInput').value='';
+    $('regNotice').textContent=`「${name}」で参加登録しました！`;
+    notice.textContent='登録完了！大会の参加者一覧に反映されました。';
+    notice.classList.remove('hidden');
+  }catch(e){
+    console.error('Registration error:',e.code,e.message,e);
+    notice.textContent=`登録に失敗しました。${e.code?` (${e.code})`:''} ${e.message||''}`;
+    notice.classList.remove('hidden');
+  }finally{
+    render();
+  }
+};
 $('loginBtn').onclick=async()=>{try{await signInWithEmailAndPassword(auth,$('adminEmail').value.trim(),$('adminPass').value);$('loginMsg').textContent='ログインしました。';}catch(e){$('loginMsg').textContent='ログイン失敗: '+e.message}};
 $('logoutBtn').onclick=()=>signOut(auth).then(()=>bootstrapAnon());
 $('saveSettingsBtn').onclick=async()=>{if(!admin())return;const name=$('eventNameInput').value.trim()||'Smash Tournament',sw=Math.max(1,Math.min(32,Number($('switchesInput').value)||1));await setDoc(eventRef,{name,switches:sw,status:event.status||'registration'},{merge:true});$('adminMsg').textContent='設定を保存しました。';setTimeout(reconcileAndAssign,100)};
