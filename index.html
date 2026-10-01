@@ -9,6 +9,15 @@
 .bracket-wrap{overflow:auto;padding:8px 2px 18px}.bracket-section{margin-bottom:28px}.bracket-section-title{font-size:17px;font-weight:900;margin:0 0 10px;color:#e8edff;display:flex;align-items:center;gap:8px}.bracket-board{display:flex;gap:34px;align-items:flex-start;min-width:max-content;padding:4px 18px 14px}.bracket-stage{width:220px;position:relative;flex:0 0 220px}.bracket-stage h4{height:20px;margin:0 0 10px;text-align:center;color:#c7d2f4;font-size:13px}.bracket-stage-body{position:relative;height:768px}.bracket-match{box-sizing:border-box;width:220px;height:82px;background:#0d1426;border:1px solid var(--line);border-radius:12px;padding:8px 10px;position:absolute;left:0;box-shadow:0 4px 12px #0002}.bracket-match.playing{border-color:#4f78ff;box-shadow:0 0 0 1px #4f78ff33,0 5px 16px #0004}.bracket-match.done{opacity:.78}.bracket-match.waiting{border-color:#6d7898}.bracket-match::after{content:"";position:absolute;right:-34px;top:50%;width:34px;border-top:2px solid #34405f}.bracket-stage:last-child .bracket-match::after{display:none}.bracket-player{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid #202a45;line-height:16px}.bracket-player:last-of-type{border-bottom:0}.bracket-player.winner{font-weight:900;color:#fff}.bracket-player .bs{min-width:24px;text-align:right;font-weight:900}.bracket-num{font-size:10px;color:#8f9bb9;margin-bottom:3px}.bracket-status{font-size:10px;color:#9ba6c3;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bracket-final{border-color:#a8893d;box-shadow:0 0 0 1px #a8893d55}.bracket-empty{padding:12px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);font-size:12px}
 .mapbox{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}.maps{display:grid;grid-template-columns:repeat(5,minmax(110px,1fr));gap:8px;margin-top:8px}.mapbtn{padding:10px 6px;min-height:52px;border:1px solid var(--line);background:#141d35}.mapbtn.banned{opacity:.35;text-decoration:line-through}.mapbtn.selected{border-color:var(--good);background:#123b30}.mapbtn.current{border-color:var(--accent);box-shadow:0 0 0 1px #4f78ff33}.map-step{font-size:12px;color:#c7d2f4;margin-bottom:5px}.vote-box{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}.vote-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.vote-card{border:1px solid var(--line);border-radius:10px;padding:10px;background:#10182b}.vote-card.ok{border-color:#246c55}.modal-back{position:fixed;inset:0;background:#0009;display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}.modal{width:min(720px,100%);max-height:90vh;overflow:auto;background:#11192c;border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 20px 80px #0008}.ban-row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.turn{padding:8px 10px;border-radius:9px;background:#202c4a;color:#dce5ff}.result-buttons{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.result-buttons button{min-height:52px}
 @media(max-width:800px){.half,.third{grid-column:span 12}.wrap{padding:12px}.brand{font-size:20px}.maps{grid-template-columns:repeat(2,1fr)}.result-buttons{grid-template-columns:1fr}.bracket-col{width:200px}}
+
+.bracket-scroll{overflow-x:auto;overflow-y:hidden;padding:4px 4px 18px;-webkit-overflow-scrolling:touch}
+.bracket-board{display:flex;gap:42px;align-items:flex-start;min-width:max-content;padding:6px 28px 18px}
+.bracket-stage{width:230px;flex:0 0 230px;position:relative}
+.bracket-stage h4{margin:0 0 10px;text-align:center;color:#c7d2f4;font-size:13px}
+.bracket-stage-body{position:relative;width:100%}
+.bracket-card-pos{position:absolute;left:0;width:230px}
+.bracket-match{box-sizing:border-box;min-height:88px;height:88px}
+.bracket-match::after{right:-43px;width:42px}
 </style>
 </head>
 <body>
@@ -33,7 +42,7 @@
 
   <section id="adminPage" class="hidden"><div class="grid">
     <div id="loginCard" class="card half"><div class="title">管理者ログイン</div><div class="field"><label>メールアドレス</label><input id="adminEmail" type="email" autocomplete="username"></div><div class="field"><label>パスワード</label><input id="adminPass" type="password" autocomplete="current-password"></div><button id="loginBtn" class="primary">ログイン</button><div id="loginMsg" class="muted" style="margin-top:8px"></div></div>
-    <div id="adminCard" class="card half hidden admin-panel"><div class="title">管理者パネル</div><div id="adminUser" class="notice success"></div><div class="field"><label>大会名</label><input id="eventNameInput" maxlength="60" value="Smash Tournament"></div><div class="field"><label>Switch / 対戦台数</label><input id="switchesInput" type="number" min="1" max="32" value="2"></div><div class="row"><button id="saveSettingsBtn">設定保存</button><button id="startBtn" class="primary">大会開始</button><button id="resetBtn" class="danger">大会リセット</button><button id="logoutBtn">ログアウト</button></div><div id="adminMsg" class="muted" style="margin-top:8px"></div></div>
+    <div id="adminCard" class="card half hidden admin-panel"><div class="title">管理者パネル</div><div id="adminUser" class="notice success"></div><div class="field"><label>大会名</label><input id="eventNameInput" maxlength="60" value="Smash Tournament"></div><div class="field"><label>Switch / 対戦台数</label><input id="switchesInput" type="number" min="1" max="32" value="2"></div><div class="row"><button id="saveSettingsBtn">設定保存</button><button id="startBtn" class="primary">大会開始</button><button id="rebuildBtn">大会表を再生成</button><button id="resetBtn" class="danger">大会リセット</button><button id="logoutBtn">ログアウト</button></div><div id="adminMsg" class="muted" style="margin-top:8px"></div></div>
     <div id="adminMatchesCard" class="card hidden"><div class="title">試合結果・台管理</div><div id="adminMatches" class="matches"></div></div>
   </div></section>
 
@@ -63,8 +72,9 @@ function labelRound(r,total){if(r===total)return '決勝';if(r===total-1)return 
 function boFor(m){return m.round>=m.wbTotal-1?'BO5':'BO3'}
 function requiredWins(m){return boFor(m)==='BO5'?3:2}
 function player(id){return players.find(p=>p.id===id)}
-function playerName(id){return player(id)?.name||(id?'未定':'未定')}
+function playerName(id,fallback='未定'){return player(id)?.name || fallback}
 function playerUid(id){return player(id)?.uid||null}
+function slotName(id,savedName){return savedName || playerName(id)}
 function actingPlayerId(m){const saved=sessionStorage.getItem('actingPlayerId');if(saved&&(saved===m.p1||saved===m.p2)){if(admin()||playerUid(saved)===currentUser?.uid)return saved}if(!admin()&&m.p1Uid===currentUser?.uid&&m.p2Uid!==currentUser?.uid)return m.p1;if(!admin()&&m.p2Uid===currentUser?.uid&&m.p1Uid!==currentUser?.uid)return m.p2;return null}
 function eligibleActingPlayers(m){return [m.p1,m.p2].filter(id=>id&&currentUser&&(admin()||playerUid(id)===currentUser.uid))}
 function chooseActingPlayer(m,nextAction=''){const ids=eligibleActingPlayers(m);const opts=ids.map(id=>`<option value="${esc(id)}">${esc(playerName(id))}</option>`).join('');if(ids.length===1){sessionStorage.setItem('actingPlayerId',ids[0]);if(nextAction==='map')openMap(m);else if(nextAction==='vote')openVote(m);return}if(!ids.length){alert('この試合を操作できる参加者として認証されていません。');return}$('modalRoot').innerHTML=`<div class="modal-back"><div class="modal"><div class="title">操作する参加者を選択</div><div class="notice">この試合では、毎回ここで「今から操作する人」を切り替えられます。<br>同じスマホで「あ」→「い」のように交代して操作できます。</div><div class="field"><label>操作する参加者</label><select id="actingPlayerSelect">${opts}</select></div><div class="row"><button id="saveActingPlayer" class="primary" data-acting-match="${esc(m.id)}" data-next-action="${esc(nextAction)}">この参加者として続ける</button><button id="closeActingPlayer">閉じる</button></div></div></div>`}
@@ -72,32 +82,79 @@ function normalizePlayers(ps){let n=1;while(n<ps.length)n*=2;return n}
 
 // 正しいダブルエリミネーションの配線。LBは2R-2ラウンドで、余分な「未定vs未定」を作らない。
 function makeBracket(ps){
-  const N=normalizePlayers(ps),R=Math.log2(N),slots=Array.from({length:N},(_,i)=>ps[i]?.id||null),out=[];
+  const N=normalizePlayers(ps),R=Math.log2(N),slots=Array.from({length:N},(_,i)=>ps[i]||null),out=[];
+  const base=(id)=>({
+    id,bracket:'',round:0,index:0,wbTotal:R,
+    p1:null,p2:null,p1Uid:null,p2Uid:null,p1Name:null,p2Name:null,
+    s1:0,s2:0,status:'pending',table:null,winner:null,loser:null,
+    source1:null,source2:null,game:1,mapState:null,mapHistory:[],votes:{},hidden:false
+  });
   for(let r=1;r<=R;r++)for(let i=0;i<N/2**r;i++){
-    out.push({id:`wb${r}-${i+1}`,bracket:'WB',round:r,index:i+1,wbTotal:R,p1:r===1?slots[i*2]:null,p2:r===1?slots[i*2+1]:null,p1Uid:r===1?playerUid(slots[i*2]):null,p2Uid:r===1?playerUid(slots[i*2+1]):null,s1:0,s2:0,status:'pending',table:null,winner:null,loser:null,source1:null,source2:null,game:1,mapState:null,mapHistory:[],votes:{},hidden:false});
+    const m=base(`wb${r}-${i+1}`);m.bracket='WB';m.round=r;m.index=i+1;
+    if(r===1){
+      const a=slots[i*2],b=slots[i*2+1];
+      m.p1=a?.id||null;m.p2=b?.id||null;
+      m.p1Uid=a?.uid||null;m.p2Uid=b?.uid||null;
+      m.p1Name=a?.name||null;m.p2Name=b?.name||null;
+    }
+    out.push(m);
   }
-  for(let r=2;r<=R;r++)for(let i=0;i<N/2**r;i++){const m=out.find(x=>x.id===`wb${r}-${i+1}`);m.source1=`wb${r-1}-${i*2+1}`;m.source2=`wb${r-1}-${i*2+2}`}
-  const sizes=[];for(let k=1;k<=Math.max(0,2*R-2);k++)sizes.push(Math.max(1,Math.floor(N/2**(Math.floor((k+1)/2)+1))));
-  for(let k=1;k<=sizes.length;k++)for(let i=0;i<sizes[k-1];i++)out.push({id:`lb${k}-${i+1}`,bracket:'LB',round:k,index:i+1,wbTotal:R,p1:null,p2:null,p1Uid:null,p2Uid:null,s1:0,s2:0,status:'pending',table:null,winner:null,loser:null,source1:null,source2:null,game:1,mapState:null,mapHistory:[],votes:{},hidden:false});
+  for(let r=2;r<=R;r++)for(let i=0;i<N/2**r;i++){
+    const m=out.find(x=>x.id===`wb${r}-${i+1}`);
+    m.source1=`wb${r-1}-${i*2+1}`;m.source2=`wb${r-1}-${i*2+2}`;
+  }
+  const sizes=[];
+  for(let k=1;k<=Math.max(0,2*R-2);k++)sizes.push(Math.max(1,Math.floor(N/2**(Math.floor((k+1)/2)+1))));
+  for(let k=1;k<=sizes.length;k++)for(let i=0;i<sizes[k-1];i++){
+    const m=base(`lb${k}-${i+1}`);m.bracket='LB';m.round=k;m.index=i+1;out.push(m);
+  }
   for(let k=1;k<=sizes.length;k++)for(let i=0;i<sizes[k-1];i++){
     const m=out.find(x=>x.id===`lb${k}-${i+1}`);
     if(k===1){m.source1=`loser:wb1-${i*2+1}`;m.source2=`loser:wb1-${i*2+2}`}
     else if(k%2===0){m.source1=`lb${k-1}-${i+1}`;const wr=k/2;m.source2=wr<=R?`loser:wb${wr}-${i+1}`:null}
     else {m.source1=`lb${k-1}-${i*2+1}`;m.source2=`lb${k-1}-${i*2+2}`}
   }
-  out.push({id:'GF-1',bracket:'GF',round:R, index:1,wbTotal:R,p1:null,p2:null,p1Uid:null,p2Uid:null,s1:0,s2:0,status:'pending',table:null,winner:null,loser:null,source1:`wb${R}-1`,source2:sizes.length?`lb${sizes.length}-1`:null,game:1,mapState:null,mapHistory:[],votes:{},hidden:false});
+  const gf=base('GF-1');gf.bracket='GF';gf.round=R;gf.index=1;gf.source1=`wb${R}-1`;gf.source2=sizes.length?`lb${sizes.length}-1`:null;out.push(gf);
   return out;
 }
 function sourceInfo(ref){if(!ref)return null;const loser=ref.startsWith('loser:');return {id:loser?ref.slice(6):ref,loser}}
 function refreshSources(ms){
-  const map=Object.fromEntries(ms.map(m=>[m.id,m]));let changed=true,guard=0;
-  while(changed&&guard++<40){changed=false;for(const m of ms){if(m.status==='done')continue;const before=[m.p1,m.p2,m.p1Uid,m.p2Uid].join('|');
-    for(const side of ['p1','p2']){const info=sourceInfo(m[side==='p1'?'source1':'source2']);if(!info)continue;const src=map[info.id];if(src?.status==='done'){const id=info.loser?(src.loser||null):(src.winner||null);m[side]=id;m[side+'Uid']=playerUid(id)||null}}
-    if(before!==[m.p1,m.p2,m.p1Uid,m.p2Uid].join('|'))changed=true;
-  }}return ms;
+  const map=Object.fromEntries(ms.map(m=>[m.id,m]));
+  let changed=true,guard=0;
+  while(changed&&guard++<80){
+    changed=false;
+    for(const m of ms){
+      for(const side of ['p1','p2']){
+        const key=side==='p1'?'source1':'source2';
+        const info=sourceInfo(m[key]);
+        if(!info)continue;
+        const src=map[info.id];
+        if(!src || src.status!=='done')continue;
+        const id=info.loser?(src.loser||null):(src.winner||null);
+        const name=info.loser?(src.loserName||slotName(src.loser)):(src.winnerName||slotName(src.winner));
+        const uid=playerUid(id)|| (id===src.p1?src.p1Uid:id===src.p2?src.p2Uid:null);
+        const vals={id,name: name||null,uid:uid||null};
+        if(m[side]!==vals.id||m[side+'Name']!==vals.name||m[side+'Uid']!==vals.uid){
+          m[side]=vals.id;m[side+'Name']=vals.name;m[side+'Uid']=vals.uid;changed=true;
+        }
+      }
+    }
+  }
+  return ms;
 }
 function sourceReady(ref,map){const info=sourceInfo(ref);return !info||map[info.id]?.status==='done'}
-function autoByes(ms){const map=Object.fromEntries(ms.map(m=>[m.id,m]));let did=false;for(const m of ms){if(m.status!=='pending')continue;if(!sourceReady(m.source1,map)||!sourceReady(m.source2,map))continue;const[a,b]=[m.p1,m.p2];if(a&&!b){m.status='done';m.winner=a;m.loser=null;m.s1=requiredWins(m);m.s2=0;did=true}else if(!a&&b){m.status='done';m.winner=b;m.loser=null;m.s1=0;m.s2=requiredWins(m);did=true}else if(!a&&!b){m.status='done';m.hidden=true;did=true}}return did}
+function autoByes(ms){
+  const map=Object.fromEntries(ms.map(m=>[m.id,m]));let did=false;
+  for(const m of ms){
+    if(m.status!=='pending')continue;
+    if(!sourceReady(m.source1,map)||!sourceReady(m.source2,map))continue;
+    const[a,b]=[m.p1,m.p2];
+    if(a&&!b){m.status='done';m.winner=a;m.loser=null;m.winnerName=slotName(a,m.p1Name);m.loserName=null;m.s1=requiredWins(m);m.s2=0;did=true}
+    else if(!a&&b){m.status='done';m.winner=b;m.loser=null;m.winnerName=slotName(b,m.p2Name);m.loserName=null;m.s1=0;m.s2=requiredWins(m);did=true}
+    else if(!a&&!b){m.status='done';m.hidden=true;did=true}
+  }
+  return did;
+}
 function ready(m){return m.status==='pending'&&!!m.p1&&!!m.p2}
 function matchOrder(m){if(m.bracket==='WB')return m.round*1000+m.index;if(m.bracket==='LB')return 10000+m.round*1000+m.index;return 30000}
 function stageName(m){return m.bracket==='WB'?labelRound(m.round,m.wbTotal):m.bracket==='LB'?`敗者側 R${m.round}`:'グランドファイナル'}
@@ -107,7 +164,7 @@ async function reconcileAndAssign(){
   if(!admin()||event.status!=='started')return;
   const fresh=matches.map(m=>({...m,mapHistory:Array.isArray(m.mapHistory)?m.mapHistory:[],votes:m.votes||{}}));refreshSources(fresh);autoByes(fresh);updateStatuses(fresh);
   const batch=writeBatch(db);let writes=0;
-  for(const m of fresh){const old=matches.find(x=>x.id===m.id)||{};const patch={};for(const k of ['p1','p2','p1Uid','p2Uid','status','winner','loser','s1','s2'])if(m[k]!==old[k])patch[k]=m[k]??null;if(Object.keys(patch).length){batch.update(doc(matchesRef,m.id),patch);writes++}}
+  for(const m of fresh){const old=matches.find(x=>x.id===m.id)||{};const patch={};for(const k of ['p1','p2','p1Uid','p2Uid','p1Name','p2Name','status','winner','loser','winnerName','loserName','s1','s2','hidden'])if(m[k]!==old[k])patch[k]=m[k]??null;if(Object.keys(patch).length){batch.update(doc(matchesRef,m.id),patch);writes++}}
   if(writes)await batch.commit();
   const occupied=new Set(fresh.filter(m=>m.status==='playing'&&m.table).map(m=>m.table));const free=[];for(let i=1;i<=Number(event.switches||1);i++)if(!occupied.has(i))free.push(i);
   const candidates=fresh.filter(m=>m.status==='waiting'&&m.p1&&m.p2).sort((a,b)=>matchOrder(a)-matchOrder(b));const b2=writeBatch(db);let w2=0;for(const m of candidates){if(!free.length)break;b2.update(doc(matchesRef,m.id),{status:'playing',table:free.shift(),game:m.game||1,mapState:m.mapState||newMapState(1)});w2++}if(w2)await b2.commit();
@@ -131,10 +188,13 @@ async function mapAction(m,map){if(!canMapAct(m)||!m.mapState)return;const s=str
   else {alert('今はあなたの操作ではありません。');return}
   await updateDoc(doc(matchesRef,m.id),{mapState:s});openMap({...m,mapState:s});render();
 }
-async function submitVote(m,winnerId){
-  if(!currentUser||(!m.p1Uid&&!m.p2Uid)||!canMapAct(m))return;
-  if(!m.mapState?.selected)return alert('先にマップピックを完了してください。');
-  const actor=actingPlayerId(m);const side=actor===m.p1?'p1':actor===m.p2?'p2':null;if(!side)return alert('この試合の参加者として認識できません。');
+async function submitVote(m,winnerId,actorId=null){
+  if(!currentUser||(!m.p1Uid&&!m.p2Uid))return;
+  const eligible=eligibleActingPlayers(m);
+  const actor=actorId&&eligible.includes(actorId)?actorId:(eligible.length===1?eligible[0]:null);
+  if(!actor)return alert('投票する参加者を選択してください。');
+  if(winnerId!==m.p1&&winnerId!==m.p2)return alert('不正な投票です。');
+  const side=actor===m.p1?'p1':actor===m.p2?'p2':null;if(!side)return alert('この試合の参加者として認識できません。');
   const votes={...(m.votes||{})};votes[side]={winnerId,uid:currentUser.uid,at:Date.now()};
   const v1=votes.p1,v2=votes.p2;let resultPatch={votes};
   if(v1&&v2&&v1.winnerId===v2.winnerId){
@@ -149,7 +209,7 @@ async function submitVote(m,winnerId){
   }
   await updateDoc(doc(matchesRef,m.id),resultPatch);if(resultPatch.status==='done')setTimeout(reconcileAndAssign,200);render();
 }
-function voteModal(m){const actor=actingPlayerId(m);const v=m.votes||{};return `<div class="modal-back"><div class="modal"><div class="title">第${m.game||1}試合の結果を投票</div><div class="notice">${esc(playerName(m.p1))} vs ${esc(playerName(m.p2))} / ${boFor(m)}　現在 ${m.s1}-${m.s2}</div><p class="small muted">このゲームで勝った選手を選んでください。両選手の投票が一致するとゲーム結果が確定し、必要なら次のゲームへ進みます。</p><div class="result-buttons">${[m.p1,m.p2].map(w=>`<button data-vote-match="${m.id}" data-winner="${w}">${esc(playerName(w))} が第${m.game||1}試合に勝利</button>`).join('')}</div><div class="vote-grid" style="margin-top:12px"><div class="vote-card ${v.p1?'ok':''}"><b>${esc(playerName(m.p1))}</b><div class="small">${v.p1?`投票済み：${esc(playerName(v.p1.winnerId))}`:'未投票'}</div></div><div class="vote-card ${v.p2?'ok':''}"><b>${esc(playerName(m.p2))}</b><div class="small">${v.p2?`投票済み：${esc(playerName(v.p2.winnerId))}`:'未投票'}</div></div></div><div class="row" style="margin-top:14px"><button id="closeVoteBtn">閉じる</button></div></div></div>`}
+function voteModal(m){const v=m.votes||{};const ids=eligibleActingPlayers(m);const saved=actingPlayerId(m);const actor=saved&&ids.includes(saved)?saved:(ids.length===1?ids[0]:'');const opts=ids.map(id=>`<option value="${esc(id)}" ${id===actor?'selected':''}>${esc(playerName(id))}</option>`).join('');return `<div class="modal-back"><div class="modal"><div class="title">第${m.game||1}試合の結果を投票</div><div class="notice">${esc(playerName(m.p1))} vs ${esc(playerName(m.p2))} / ${boFor(m)}　現在 ${m.s1}-${m.s2}</div><div class="field" style="margin-top:12px"><label>投票する参加者</label><select id="voteActorSelect">${opts}</select></div><p class="small muted">上で参加者を選んでから、このゲームで勝った選手を押してください。<br>同じスマホでも「あ」→「い」と毎回切り替えて投票できます。</p><div class="result-buttons">${[m.p1,m.p2].map(w=>`<button data-vote-match="${m.id}" data-winner="${w}">${esc(playerName(w))} が第${m.game||1}試合に勝利</button>`).join('')}</div><div class="vote-grid" style="margin-top:12px"><div class="vote-card ${v.p1?'ok':''}"><b>${esc(playerName(m.p1))}</b><div class="small">${v.p1?`投票済み：${esc(playerName(v.p1.winnerId))}`:'未投票'}</div></div><div class="vote-card ${v.p2?'ok':''}"><b>${esc(playerName(m.p2))}</b><div class="small">${v.p2?`投票済み：${esc(playerName(v.p2.winnerId))}`:'未投票'}</div></div></div><div class="row" style="margin-top:14px"><button id="closeVoteBtn">閉じる</button></div></div></div>`}
 function openVote(m){$('modalRoot').innerHTML=voteModal(m)}
 
 function matchHTML(m,adminMode){
@@ -164,8 +224,8 @@ function bracketCard(m,final=false){
   const state=m.status==='playing'?`台${m.table}・プレイ中`:m.status==='waiting'?'待機中':m.status==='done'?'終了':'次待ち';
   return `<div class="bracket-match ${m.status==='playing'?'playing':''} ${m.status==='waiting'?'waiting':''} ${m.status==='done'?'done':''} ${final?'bracket-final':''}">
     <div class="bracket-num">試合 #${m.index}${m.table?` ・ 台${m.table}`:''}</div>
-    <div class="bracket-player ${m.winner===m.p1?'winner':''}"><span>${esc(playerName(m.p1))}</span><span class="bs">${m.s1}</span></div>
-    <div class="bracket-player ${m.winner===m.p2?'winner':''}"><span>${esc(playerName(m.p2))}</span><span class="bs">${m.s2}</span></div>
+    <div class="bracket-player ${m.winner===m.p1?'winner':''}"><span>${esc(slotName(m.p1,m.p1Name))}</span><span class="bs">${m.s1}</span></div>
+    <div class="bracket-player ${m.winner===m.p2?'winner':''}"><span>${esc(slotName(m.p2,m.p2Name))}</span><span class="bs">${m.s2}</span></div>
     <div class="bracket-status">${state} / ${boFor(m)}${m.mapState?.selected?` ・ 🗺️ ${esc(m.mapState.selected)}`:''}</div>
   </div>`;
 }
@@ -173,20 +233,21 @@ function renderBracket(){
   if(!matches.length){$('bracket').innerHTML='<div class="muted">大会開始後にトーナメントが表示されます。</div>';return}
   const wb=matches.filter(m=>m.bracket==='WB'&&!m.hidden).sort((a,b)=>a.round-b.round||a.index-b.index);
   const lb=matches.filter(m=>m.bracket==='LB'&&!m.hidden).sort((a,b)=>a.round-b.round||a.index-b.index);
-  const gf=matches.filter(m=>m.bracket==='GF');
-  const wbMax=Math.max(0,...wb.map(m=>m.round)),lbMax=Math.max(0,...lb.map(m=>m.round));
-  const SLOT=96, CARD=82;
+  const gf=matches.find(m=>m.bracket==='GF');
+  const CARD=88,GAP=20;
   const stageHtml=(list,max,prefix)=>Array.from({length:max},(_,ri)=>{
-    const r=ri+1,ms=list.filter(m=>m.round===r); if(!ms.length)return '';
-    const step=SLOT*Math.pow(2,r-1);
-    const topBase=(step-SLOT)/2;
-    const bodyH=Math.max(SLOT, (ms.length*step));
-    const cards=ms.map((m,i)=>{const top=topBase+i*step;return `<div style="top:${top}px">${bracketCard(m)}</div>`}).join('');
-    return `<div class="bracket-stage"><h4>${prefix}${r===max?' 決勝':r===max-1?' 準決勝':` R${r}`}</h4><div class="bracket-stage-body" style="height:${bodyH}px">${cards}</div></div>`;
+    const r=ri+1,ms=list.filter(m=>m.round===r);if(!ms.length)return '';
+    const prevCount=list.filter(m=>m.round===r-1).length;
+    const gap=Math.max(GAP,Math.round((CARD+GAP)*(Math.pow(2,r-1)-1)));
+    const step=CARD+gap;
+    const totalH=Math.max(120,ms.length*step-gap);
+    const topOffset=r===1?0:Math.round((prevCount>0?((prevCount*(CARD+GAP)-GAP)-totalH)/2:0));
+    const cards=ms.map((m,i)=>`<div class="bracket-card-pos" style="top:${Math.max(0,topOffset)+i*step}px">${bracketCard(m)}</div>`).join('');
+    return `<div class="bracket-stage" style="min-height:${totalH+36}px"><h4>${prefix}${r===max?'決勝':r===max-1?'準決勝':`R${r}`}</h4><div class="bracket-stage-body" style="height:${totalH}px">${cards}</div></div>`;
   }).join('');
-  const gfHtml=gf.length?`<div class="bracket-stage"><h4>グランドファイナル</h4><div class="bracket-stage-body" style="height:384px"><div style="top:151px">${bracketCard(gf[0],true)}</div></div></div>`:'';
-  $('bracket').innerHTML=`<div class="bracket-section"><div class="bracket-section-title">🏆 勝者側トーナメント</div><div class="bracket-board">${stageHtml(wb,wbMax,'')}${gfHtml}</div></div>
-  <div class="bracket-section"><div class="bracket-section-title">💀 敗者側トーナメント</div><div class="bracket-board">${stageHtml(lb,lbMax,'敗者側')}</div></div>`;
+  const gfHtml=gf?`<div class="bracket-stage gf-stage"><h4>グランドファイナル</h4><div class="bracket-stage-body" style="height:280px"><div class="bracket-card-pos" style="top:96px">${bracketCard(gf,true)}</div></div></div>`:'';
+  $('bracket').innerHTML=`<div class="bracket-section"><div class="bracket-section-title">🏆 勝者側トーナメント</div><div class="bracket-scroll"><div class="bracket-board">${stageHtml(wb,Math.max(0,...wb.map(m=>m.round)),'')}${gfHtml}</div></div></div>
+  <div class="bracket-section"><div class="bracket-section-title">💀 敗者側トーナメント</div><div class="bracket-scroll"><div class="bracket-board">${stageHtml(lb,Math.max(0,...lb.map(m=>m.round)),'LB ')}</div></div></div>`;
 }
 function render(){
   $('eventSub').textContent=event.name||'Smash Tournament';$('statusPill').textContent=event.status==='started'?'大会進行中':'参加受付中';
@@ -208,11 +269,39 @@ $('loginBtn').onclick=async()=>{try{await signInWithEmailAndPassword(auth,$('adm
 $('logoutBtn').onclick=()=>signOut(auth).then(()=>bootstrapAnon());
 $('saveSettingsBtn').onclick=async()=>{if(!admin())return;const name=$('eventNameInput').value.trim()||'Smash Tournament',sw=Math.max(1,Math.min(32,Number($('switchesInput').value)||1));await setDoc(eventRef,{name,switches:sw,status:event.status||'registration'},{merge:true});$('adminMsg').textContent='設定を保存しました。';setTimeout(reconcileAndAssign,100)};
 $('startBtn').onclick=async()=>{if(confirm(`参加者${players.length}人で大会を開始します。開始後は参加登録できません。よろしいですか？`))await startTournament()};
+$('rebuildBtn').onclick=async()=>await rebuildTournament();
 $('resetBtn').onclick=async()=>{if(!admin())return;if(!confirm('大会をリセットして、試合データと参加者名簿をすべて削除し、再び参加受付に戻します。よろしいですか？'))return;try{await deleteAllMatches();await deleteAllPlayers();await setDoc(eventRef,{status:'registration',startedAt:null,playerCount:0},{merge:true});$('adminMsg').textContent='大会をリセットしました。試合データと参加者名簿を削除しました。';}catch(e){console.error(e);$('adminMsg').textContent='リセットに失敗しました: '+e.message;}};
-async function startTournament(){if(!admin()||event.status==='started')return;if(players.length<2){$('adminMsg').textContent='参加者が2人以上必要です。';return}const built=makeBracket(players);await deleteAllMatches();const batch=writeBatch(db);built.forEach(m=>batch.set(doc(matchesRef,m.id),m));batch.set(eventRef,{status:'started',startedAt:serverTimestamp(),playerCount:players.length},{merge:true});await batch.commit();$('adminMsg').textContent='大会を開始しました！';setTimeout(reconcileAndAssign,300)}
+async function buildTournamentFromCurrentRoster(label='大会を開始しました！'){
+  const snap=await getDocs(playersRef);
+  const roster=snap.docs.map(d=>({id:d.id,...d.data()})).filter(p=>p.name&&p.uid);
+  if(roster.length<2)throw new Error(`参加者が2人以上必要です。（現在 ${roster.length}人）`);
+  roster.sort((a,b)=>{
+    const at=a.createdAt?.toMillis?a.createdAt.toMillis():0;
+    const bt=b.createdAt?.toMillis?b.createdAt.toMillis():0;
+    return at-bt;
+  });
+  players=roster;
+  const built=makeBracket(roster);
+  await deleteAllMatches();
+  const batch=writeBatch(db);
+  built.forEach(m=>batch.set(doc(matchesRef,m.id),m));
+  batch.set(eventRef,{status:'started',startedAt:event.startedAt||serverTimestamp(),playerCount:roster.length},{merge:true});
+  await batch.commit();
+  $('adminMsg').textContent=`${label} ${roster.length}人の名簿を反映しました。`;
+  setTimeout(reconcileAndAssign,250);
+}
+async function startTournament(){
+  if(!admin()||event.status==='started')return;
+  try{await buildTournamentFromCurrentRoster('大会を開始しました！')}catch(e){console.error(e);$('adminMsg').textContent='大会開始に失敗しました: '+(e.message||e)}
+}
+async function rebuildTournament(){
+  if(!admin()||event.status!=='started')return;
+  if(!confirm('現在の参加者名簿をそのまま使って、トーナメント表と試合データを再生成します。進行中の試合結果は消えます。よろしいですか？'))return;
+  try{await buildTournamentFromCurrentRoster('大会表を再生成しました！')}catch(e){console.error(e);$('adminMsg').textContent='再生成に失敗しました: '+(e.message||e)}
+}
 async function deleteAllMatches(){const snap=await getDocs(matchesRef);const b=writeBatch(db);snap.forEach(d=>b.delete(d.ref));await b.commit()}
 async function deleteAllPlayers(){const snap=await getDocs(playersRef);if(snap.empty)return;let batch=writeBatch(db),count=0;for(const d of snap.docs){batch.delete(d.ref);count++;if(count===450){await batch.commit();batch=writeBatch(db);count=0}}if(count)await batch.commit()}
-document.addEventListener('click',async e=>{const close=e.target.closest('#closeMapBtn,#closeVoteBtn');if(close){$('modalRoot').innerHTML='';return}const saveActor=e.target.closest('#saveActingPlayer');if(saveActor){const id=$('actingPlayerSelect').value;const mid=saveActor.dataset.actingMatch;const next=saveActor.dataset.nextAction;sessionStorage.setItem('actingPlayerId',id);$('modalRoot').innerHTML='';const mm=matches.find(x=>x.id===mid);if(mm){if(next==='map')openMap(mm);else if(next==='vote')openVote(mm)}return}const closeActor=e.target.closest('#closeActingPlayer');if(closeActor){$('modalRoot').innerHTML='';return}const mb=e.target.closest('[data-open-map]');if(mb){const m=matches.find(x=>x.id===mb.dataset.openMap);if(m){const ids=eligibleActingPlayers(m);if(ids.length>1)chooseActingPlayer(m,'map');else if(ids.length===1){sessionStorage.setItem('actingPlayerId',ids[0]);openMap(m)}else alert('この試合を操作できる参加者として認証されていません。')}return}const mapb=e.target.closest('[data-map-match]');if(mapb){const m=matches.find(x=>x.id===mapb.dataset.mapMatch);if(m)try{await mapAction(m,mapb.dataset.mapName)}catch(err){alert('マップ操作に失敗しました: '+err.message)}return}const vb=e.target.closest('[data-open-vote]');if(vb){const m=matches.find(x=>x.id===vb.dataset.openVote);if(m){const ids=eligibleActingPlayers(m);if(ids.length>1)chooseActingPlayer(m,'vote');else if(ids.length===1){sessionStorage.setItem('actingPlayerId',ids[0]);openVote(m)}else alert('この試合を操作できる参加者として認証されていません。')}return}const vote=e.target.closest('[data-vote-match]');if(vote){const m=matches.find(x=>x.id===vote.dataset.voteMatch);if(m)try{await submitVote(m,vote.dataset.winner)}catch(err){alert('投票に失敗しました: '+err.message)}return}});
+document.addEventListener('click',async e=>{const close=e.target.closest('#closeMapBtn,#closeVoteBtn');if(close){$('modalRoot').innerHTML='';return}const saveActor=e.target.closest('#saveActingPlayer');if(saveActor){const id=$('actingPlayerSelect').value;const mid=saveActor.dataset.actingMatch;const next=saveActor.dataset.nextAction;sessionStorage.setItem('actingPlayerId',id);$('modalRoot').innerHTML='';const mm=matches.find(x=>x.id===mid);if(mm){if(next==='map')openMap(mm);else if(next==='vote')openVote(mm)}return}const closeActor=e.target.closest('#closeActingPlayer');if(closeActor){$('modalRoot').innerHTML='';return}const mb=e.target.closest('[data-open-map]');if(mb){const m=matches.find(x=>x.id===mb.dataset.openMap);if(m){const ids=eligibleActingPlayers(m);if(ids.length>1)chooseActingPlayer(m,'map');else if(ids.length===1){sessionStorage.setItem('actingPlayerId',ids[0]);openMap(m)}else alert('この試合を操作できる参加者として認証されていません。')}return}const mapb=e.target.closest('[data-map-match]');if(mapb){const m=matches.find(x=>x.id===mapb.dataset.mapMatch);if(m)try{await mapAction(m,mapb.dataset.mapName)}catch(err){alert('マップ操作に失敗しました: '+err.message)}return}const vb=e.target.closest('[data-open-vote]');if(vb){const m=matches.find(x=>x.id===vb.dataset.openVote);if(m){const ids=eligibleActingPlayers(m);if(ids.length>1)chooseActingPlayer(m,'vote');else if(ids.length===1){sessionStorage.setItem('actingPlayerId',ids[0]);openVote(m)}else alert('この試合を操作できる参加者として認証されていません。')}return}const vote=e.target.closest('[data-vote-match]');if(vote){const m=matches.find(x=>x.id===vote.dataset.voteMatch);if(m)try{const actor=$('voteActorSelect')?.value||null;await submitVote(m,vote.dataset.winner,actor);if($('modalRoot').innerHTML&&m.status==='playing')openVote({...m,...(matches.find(x=>x.id===m.id)||{})});}catch(err){alert('投票に失敗しました: '+err.message)}return}});
 subscribe();bootstrapAnon();
 </script>
 </body></html>
