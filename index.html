@@ -147,11 +147,19 @@ function autoByes(ms){
   const map=Object.fromEntries(ms.map(m=>[m.id,m]));let did=false;
   for(const m of ms){
     if(m.status!=='pending')continue;
+    // 前段の試合がまだ未確定なら、この試合もまだ判定しない。
     if(!sourceReady(m.source1,map)||!sourceReady(m.source2,map))continue;
     const[a,b]=[m.p1,m.p2];
-    if(a&&!b){m.status='done';m.winner=a;m.loser=null;m.winnerName=slotName(a,m.p1Name);m.loserName=null;m.s1=requiredWins(m);m.s2=0;did=true}
-    else if(!a&&b){m.status='done';m.winner=b;m.loser=null;m.winnerName=slotName(b,m.p2Name);m.loserName=null;m.s1=0;m.s2=requiredWins(m);did=true}
-    else if(!a&&!b){m.status='done';m.hidden=true;did=true}
+    // 片方だけプレイヤーが入っている場合のみ不戦勝。
+    // 不戦勝は「試合を3-0/2-0で勝った」扱いにはせず、スコアは0-0のままにする。
+    if(a&&!b){
+      m.status='done';m.winner=a;m.loser=null;m.winnerName=slotName(a,m.p1Name);m.loserName=null;m.s1=0;m.s2=0;did=true;
+    }else if(!a&&b){
+      m.status='done';m.winner=b;m.loser=null;m.winnerName=slotName(b,m.p2Name);m.loserName=null;m.s1=0;m.s2=0;did=true;
+    }else if(!a&&!b){
+      // 両者とも未定になった枠は、以降に実在選手が入ることはないため非表示。
+      m.status='done';m.hidden=true;m.winner=null;m.loser=null;m.s1=0;m.s2=0;did=true;
+    }
   }
   return did;
 }
@@ -162,7 +170,19 @@ function updateStatuses(ms){for(const m of ms){if(m.status==='done')continue;if(
 
 async function reconcileAndAssign(){
   if(!admin()||event.status!=='started')return;
-  const fresh=matches.map(m=>({...m,mapHistory:Array.isArray(m.mapHistory)?m.mapHistory:[],votes:m.votes||{}}));refreshSources(fresh);autoByes(fresh);updateStatuses(fresh);
+  const fresh=matches.map(m=>({...m,mapHistory:Array.isArray(m.mapHistory)?m.mapHistory:[],votes:m.votes||{}}));
+
+  // 「不戦勝で前の試合が確定 → その勝者が次へ進む → 次も不戦勝…」を
+  // 1回の同期ですべて解決できるよう、配線更新と不戦勝判定を安定するまで繰り返す。
+  for(let pass=0;pass<100;pass++){
+    const before=fresh.map(m=>[m.id,m.p1,m.p2,m.p1Uid,m.p2Uid,m.status,m.winner,m.loser,m.s1,m.s2,m.hidden].join('|')).join('\n');
+    refreshSources(fresh);
+    autoByes(fresh);
+    refreshSources(fresh);
+    const after=fresh.map(m=>[m.id,m.p1,m.p2,m.p1Uid,m.p2Uid,m.status,m.winner,m.loser,m.s1,m.s2,m.hidden].join('|')).join('\n');
+    if(before===after)break;
+  }
+  updateStatuses(fresh);
   const batch=writeBatch(db);let writes=0;
   for(const m of fresh){const old=matches.find(x=>x.id===m.id)||{};const patch={};for(const k of ['p1','p2','p1Uid','p2Uid','p1Name','p2Name','status','winner','loser','winnerName','loserName','s1','s2','hidden'])if(m[k]!==old[k])patch[k]=m[k]??null;if(Object.keys(patch).length){batch.update(doc(matchesRef,m.id),patch);writes++}}
   if(writes)await batch.commit();
@@ -272,6 +292,7 @@ function renderBracket(){
   const wbStages=Array.from({length:wbMax},(_,i)=>wbStage(i+1,wbMax)).join('');
   const lbStages=Array.from({length:lbMax},(_,i)=>lbStage(i+1,lbMax)).join('');
 
+  // グランドファイナルは勝者側「決勝」の直後、同じ高さの位置に固定して横並びにする。
   const gfHtml=gf?`<div class="bracket-stage gf-stage"><h4>グランドファイナル</h4><div class="bracket-stage-body" style="height:${Math.pow(2,wbMax)*UNIT+UNIT}px"><div class="bracket-card-pos" style="top:${Math.round(Math.pow(2,wbMax)*UNIT-CARD_H/2)}px">${bracketCard(gf,true)}</div></div></div>`:'';
 
   $('bracket').innerHTML=`
