@@ -142,23 +142,48 @@ function refreshSources(ms){
   }
   return ms;
 }
-function sourceReady(ref,map){const info=sourceInfo(ref);return !info||map[info.id]?.status==='done'}
+// その供給元から「将来プレイヤーが来る可能性」があるかを再帰的に判定する。
+// winner経路: どちらか片方でも実在選手が来る可能性があれば true。
+// loser経路 : 両方に実在選手が来る可能性がある時だけ true（BYEの敗者は存在しないため）。
+function sourceCanProduce(ref,map,seen=new Set()){
+  const info=sourceInfo(ref);
+  if(!info)return false; // 1回戦の空き枠など、供給元そのものが無い = 将来も誰も来ない
+  const key=(info.loser?'L:':'W:')+info.id;
+  if(seen.has(key))return false;
+  seen.add(key);
+  const src=map[info.id];
+  if(!src)return false;
+  if(src.status==='done')return !!(info.loser?src.loser:src.winner);
+  const p1Possible=!!src.p1 || sourceCanProduce(src.source1,map,new Set(seen));
+  const p2Possible=!!src.p2 || sourceCanProduce(src.source2,map,new Set(seen));
+  return info.loser ? (p1Possible&&p2Possible) : (p1Possible||p2Possible);
+}
+function sideCanStillReceive(m,side,map){
+  if(m[side])return true;
+  const ref=side==='p1'?m.source1:m.source2;
+  return sourceCanProduce(ref,map);
+}
 function autoByes(ms){
   const map=Object.fromEntries(ms.map(m=>[m.id,m]));let did=false;
   for(const m of ms){
     if(m.status!=='pending')continue;
-    // 前段の試合がまだ未確定なら、この試合もまだ判定しない。
-    if(!sourceReady(m.source1,map)||!sourceReady(m.source2,map))continue;
-    const[a,b]=[m.p1,m.p2];
-    // 片方だけプレイヤーが入っている場合のみ不戦勝。
-    // 不戦勝は「試合を3-0/2-0で勝った」扱いにはせず、スコアは0-0のままにする。
+    const a=m.p1,b=m.p2;
+    const aPossible=sideCanStillReceive(m,'p1',map);
+    const bPossible=sideCanStillReceive(m,'p2',map);
+
+    // 片方に実在選手がいる場合、空いている側の「前の枝」を確認する。
+    // そこから将来選手が来る可能性があるなら待機。完全な空枝なら不戦勝で進める。
     if(a&&!b){
-      m.status='done';m.winner=a;m.loser=null;m.winnerName=slotName(a,m.p1Name);m.loserName=null;m.s1=0;m.s2=0;did=true;
+      if(bPossible)continue;
+      m.status='done';m.winner=a;m.loser=null;m.winnerName=slotName(a,m.p1Name);m.loserName=null;m.s1=0;m.s2=0;m.hidden=false;did=true;
     }else if(!a&&b){
-      m.status='done';m.winner=b;m.loser=null;m.winnerName=slotName(b,m.p2Name);m.loserName=null;m.s1=0;m.s2=0;did=true;
+      if(aPossible)continue;
+      m.status='done';m.winner=b;m.loser=null;m.winnerName=slotName(b,m.p2Name);m.loserName=null;m.s1=0;m.s2=0;m.hidden=false;did=true;
     }else if(!a&&!b){
-      // 両者とも未定になった枠は、以降に実在選手が入ることはないため非表示。
-      m.status='done';m.hidden=true;m.winner=null;m.loser=null;m.s1=0;m.s2=0;did=true;
+      // 「未定 vs 未定」は表示には残す。
+      // ただし両方の枝が完全に空なら内部的には終了させ、上位ラウンドが永久に待たないようにする。
+      if(aPossible||bPossible)continue;
+      m.status='done';m.winner=null;m.loser=null;m.winnerName=null;m.loserName=null;m.s1=0;m.s2=0;m.hidden=false;did=true;
     }
   }
   return did;
