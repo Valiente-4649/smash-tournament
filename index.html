@@ -53,7 +53,7 @@
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
 import { getAuth, signInAnonymously, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
-import { getFirestore, doc, collection, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, getDocs, query, orderBy, writeBatch, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
+import { getFirestore, doc, collection, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, getDocs, query, orderBy, writeBatch, serverTimestamp, runTransaction } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 const firebaseConfig={apiKey:'AIzaSyDVOpwr89QumJoa0RH06Vk99lOvUxDee8A',authDomain:'smash-tournament-7d620.firebaseapp.com',databaseURL:'https://smash-tournament-7d620-default-rtdb.firebaseio.com',projectId:'smash-tournament-7d620',storageBucket:'smash-tournament-7d620.firebasestorage.app',messagingSenderId:'883349497921',appId:'1:883349497921:web:40e3489325f0d1770c7ec0',measurementId:'G-JQLHX9GZK6'};
 const ADMIN_UID='yBn5daLPV2bQ3q8A4nJuzDgSRfO2';
@@ -69,7 +69,7 @@ function setPage(id){['viewPage','mapsPage','registerPage','adminPage'].forEach(
 $('tabView').onclick=()=>setPage('viewPage');$('tabMaps').onclick=()=>setPage('mapsPage');$('tabRegister').onclick=()=>setPage('registerPage');$('tabAdmin').onclick=()=>setPage('adminPage');
 function rounds(n){return Math.ceil(Math.log2(Math.max(2,n)))}
 function labelRound(r,total){if(r===total)return '決勝';if(r===total-1)return '準決勝';if(r===total-2)return '準々決勝';return `WB R${r}`}
-function boFor(m){return m.round>=m.wbTotal-1?'BO5':'BO3'}
+function boFor(m){if(m.bracket==='GF')return 'BO5';return m.round>=m.wbTotal-1?'BO5':'BO3'}
 function requiredWins(m){return boFor(m)==='BO5'?3:2}
 function player(id){return players.find(p=>p.id===id)}
 function playerName(id,fallback='未定'){return player(id)?.name || fallback}
@@ -195,7 +195,7 @@ function updateStatuses(ms){for(const m of ms){if(m.status==='done')continue;if(
 
 async function reconcileAndAssign(){
   if(!admin()||event.status!=='started')return;
-  const fresh=matches.map(m=>({...m,mapHistory:Array.isArray(m.mapHistory)?m.mapHistory:[],votes:m.votes||{}}));
+  const fresh=matches.map(m=>{const x={...m,mapHistory:Array.isArray(m.mapHistory)?m.mapHistory:[],votes:m.votes||{}};const need=requiredWins(x);if(x.status==='done'){x.s1=Math.min(Number(x.s1||0),need);x.s2=Math.min(Number(x.s2||0),need)}return x;});
 
   // 「不戦勝で前の試合が確定 → その勝者が次へ進む → 次も不戦勝…」を
   // 1回の同期ですべて解決できるよう、配線更新と不戦勝判定を安定するまで繰り返す。
@@ -240,19 +240,32 @@ async function submitVote(m,winnerId,actorId=null){
   if(!actor)return alert('投票する参加者を選択してください。');
   if(winnerId!==m.p1&&winnerId!==m.p2)return alert('不正な投票です。');
   const side=actor===m.p1?'p1':actor===m.p2?'p2':null;if(!side)return alert('この試合の参加者として認識できません。');
-  const votes={...(m.votes||{})};votes[side]={winnerId,uid:currentUser.uid,at:Date.now()};
-  const v1=votes.p1,v2=votes.p2;let resultPatch={votes};
-  if(v1&&v2&&v1.winnerId===v2.winnerId){
-    const gameWinner=v1.winnerId,gameLoser=gameWinner===m.p1?m.p2:m.p1;
-    const nextS1=m.s1+(gameWinner===m.p1?1:0),nextS2=m.s2+(gameWinner===m.p2?1:0),need=requiredWins(m);
-    if(nextS1>=need||nextS2>=need){
-      resultPatch={status:'done',table:null,winner:gameWinner,loser:gameLoser,s1:nextS1,s2:nextS2,votes,game:m.game||1,mapState:m.mapState,finishedAt:serverTimestamp()};
-    }else{
-      const nextGame=(m.game||1)+1;
-      resultPatch={status:'playing',table:m.table,winner:null,loser:null,s1:nextS1,s2:nextS2,votes:{},game:nextGame,mapState:newMapState(nextGame,gameWinner,gameLoser)};
+  const ref=doc(matchesRef,m.id);
+  let finished=false;
+  await runTransaction(db,async tx=>{
+    const snap=await tx.get(ref);if(!snap.exists())throw Error('試合データが見つかりません。');
+    const live={id:snap.id,...snap.data()};
+    // すでに終了した試合には、古い画面から追加投票されても絶対に加点しない。
+    if(live.status==='done'){finished=true;return}
+    if(winnerId!==live.p1&&winnerId!==live.p2)throw Error('対戦相手が更新されています。画面を開き直してください。');
+    const liveSide=actor===live.p1?'p1':actor===live.p2?'p2':null;if(!liveSide)throw Error('この試合の参加者ではありません。');
+    const votes={...(live.votes||{})};votes[liveSide]={winnerId,uid:currentUser.uid,at:Date.now()};
+    const v1=votes.p1,v2=votes.p2;let patch={votes};
+    if(v1&&v2&&v1.winnerId===v2.winnerId){
+      const gameWinner=v1.winnerId,gameLoser=gameWinner===live.p1?live.p2:live.p1;
+      const need=requiredWins(live);
+      const nextS1=Math.min(need,Number(live.s1||0)+(gameWinner===live.p1?1:0));
+      const nextS2=Math.min(need,Number(live.s2||0)+(gameWinner===live.p2?1:0));
+      if(nextS1>=need||nextS2>=need){
+        patch={status:'done',table:null,winner:gameWinner,loser:gameLoser,s1:nextS1,s2:nextS2,votes,game:live.game||1,mapState:live.mapState,finishedAt:serverTimestamp()};finished=true;
+      }else{
+        const nextGame=(live.game||1)+1;
+        patch={status:'playing',table:live.table,winner:null,loser:null,s1:nextS1,s2:nextS2,votes:{},game:nextGame,mapState:newMapState(nextGame,gameWinner,gameLoser)};
+      }
     }
-  }
-  await updateDoc(doc(matchesRef,m.id),resultPatch);if(resultPatch.status==='done')setTimeout(reconcileAndAssign,200);render();
+    tx.update(ref,patch);
+  });
+  if(finished)setTimeout(reconcileAndAssign,200);render();
 }
 function voteModal(m){const v=m.votes||{};const ids=eligibleActingPlayers(m);const saved=actingPlayerId(m);const actor=saved&&ids.includes(saved)?saved:(ids.length===1?ids[0]:'');const opts=ids.map(id=>`<option value="${esc(id)}" ${id===actor?'selected':''}>${esc(playerName(id))}</option>`).join('');return `<div class="modal-back"><div class="modal"><div class="title">第${m.game||1}試合の結果を投票</div><div class="notice">${esc(playerName(m.p1))} vs ${esc(playerName(m.p2))} / ${boFor(m)}　現在 ${m.s1}-${m.s2}</div><div class="field" style="margin-top:12px"><label>投票する参加者</label><select id="voteActorSelect">${opts}</select></div><p class="small muted">上で参加者を選んでから、このゲームで勝った選手を押してください。<br>同じスマホでも「あ」→「い」と毎回切り替えて投票できます。</p><div class="result-buttons">${[m.p1,m.p2].map(w=>`<button data-vote-match="${m.id}" data-winner="${w}">${esc(playerName(w))} が第${m.game||1}試合に勝利</button>`).join('')}</div><div class="vote-grid" style="margin-top:12px"><div class="vote-card ${v.p1?'ok':''}"><b>${esc(playerName(m.p1))}</b><div class="small">${v.p1?`投票済み：${esc(playerName(v.p1.winnerId))}`:'未投票'}</div></div><div class="vote-card ${v.p2?'ok':''}"><b>${esc(playerName(m.p2))}</b><div class="small">${v.p2?`投票済み：${esc(playerName(v.p2.winnerId))}`:'未投票'}</div></div></div><div class="row" style="margin-top:14px"><button id="closeVoteBtn">閉じる</button></div></div></div>`}
 function openVote(m){$('modalRoot').innerHTML=voteModal(m)}
@@ -348,11 +361,13 @@ async function buildTournamentFromCurrentRoster(label='大会を開始しまし�
   const snap=await getDocs(playersRef);
   const roster=snap.docs.map(d=>({id:d.id,...d.data()})).filter(p=>p.name&&p.uid);
   if(roster.length<2)throw new Error(`参加者が2人以上必要です。（現在 ${roster.length}人）`);
-  roster.sort((a,b)=>{
-    const at=a.createdAt?.toMillis?a.createdAt.toMillis():0;
-    const bt=b.createdAt?.toMillis?b.createdAt.toMillis():0;
-    return at-bt;
-  });
+  // 初戦の組み合わせは登録順ではなく、大会表を作るたびにランダム化する。
+  // Fisher-Yates shuffle（crypto.getRandomValues を使用）
+  for(let i=roster.length-1;i>0;i--){
+    const a=new Uint32Array(1);crypto.getRandomValues(a);
+    const j=Math.floor((a[0]/4294967296)*(i+1));
+    [roster[i],roster[j]]=[roster[j],roster[i]];
+  }
   players=roster;
   const built=makeBracket(roster);
   await deleteAllMatches();
