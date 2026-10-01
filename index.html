@@ -6,7 +6,7 @@
 <style>
 :root{--bg:#0b1020;--card:#141b2f;--card2:#10172a;--text:#eef2ff;--muted:#9ba6c3;--line:#2a3555;--accent:#7c9cff;--good:#38d39f;--warn:#ffc857;--danger:#ff6b7a}
 *{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#090d19,#10172a 55%,#0b1020);color:var(--text);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button,input,select{font:inherit}button{border:0;border-radius:10px;padding:10px 14px;cursor:pointer;background:#26345a;color:#fff}button.primary{background:var(--accent);color:#071022;font-weight:800}button.good{background:var(--good);color:#06150f;font-weight:800}button.danger{background:var(--danger);color:#21060b}button:disabled{opacity:.45;cursor:not-allowed}.wrap{max-width:1400px;margin:auto;padding:18px}.top{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}.brand{font-size:24px;font-weight:900}.pill{padding:5px 9px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:12px}.nav{display:flex;gap:8px;margin:16px 0;flex-wrap:wrap}.nav button.active{background:var(--accent);color:#071022}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}.card{grid-column:span 12;background:rgba(20,27,47,.92);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 10px 30px #0003}.half{grid-column:span 6}.third{grid-column:span 4}.muted{color:var(--muted)}.title{font-weight:900;font-size:18px;margin-bottom:10px}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.field{display:flex;flex-direction:column;gap:6px;margin:8px 0}.field input,.field select{background:#0b1224;border:1px solid var(--line);color:#fff;border-radius:10px;padding:10px}.notice{padding:10px 12px;border-radius:10px;background:#18233e;border:1px solid var(--line);color:#dbe4ff}.success{border-color:#246c55;background:#10271f}.error{border-color:#7a3040;background:#2a1118}.players{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}.player{padding:10px;background:#0e1528;border:1px solid var(--line);border-radius:10px}.matches{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px}.match{background:#0d1426;border:1px solid var(--line);border-radius:14px;padding:12px}.match.playing{border-color:#4f78ff;box-shadow:0 0 0 1px #4f78ff33}.match.done{opacity:.8}.match-head{display:flex;justify-content:space-between;gap:8px;align-items:center}.tag{font-size:11px;border-radius:999px;padding:4px 7px;background:#202c4a;color:#cbd6f4}.scoreline{display:grid;grid-template-columns:1fr auto;gap:5px;align-items:center;margin-top:10px}.scoreline b{font-size:16px}.score{font-size:22px;font-weight:900}.small{font-size:12px}.hidden{display:none!important}.footer{padding:28px 0;color:var(--muted);font-size:12px;text-align:center}.admin-panel{position:sticky;top:10px}
-.bracket-wrap{overflow:auto;padding:8px 2px 18px}.bracket-section{margin-bottom:28px}.bracket-section-title{font-size:17px;font-weight:900;margin:0 0 10px;color:#e8edff;display:flex;align-items:center;gap:8px}.bracket-board{display:flex;gap:34px;align-items:flex-start;min-width:max-content;padding:4px 18px 14px}.bracket-stage{width:220px;position:relative;flex:0 0 220px}.bracket-stage h4{height:20px;margin:0 0 10px;text-align:center;color:#c7d2f4;font-size:13px}.bracket-stage-body{position:relative;height:768px}.bracket-match{box-sizing:border-box;width:220px;height:82px;background:#0d1426;border:1px solid var(--line);border-radius:12px;padding:8px 10px;position:absolute;left:0;box-shadow:0 4px 12px #0002}.bracket-match.playing{border-color:#4f78ff;box-shadow:0 0 0 1px #4f78ff33,0 5px 16px #0004}.bracket-match.done{opacity:.78}.bracket-match.waiting{border-color:#6d7898}.bracket-match::after{content:"";position:absolute;right:-34px;top:50%;width:34px;border-top:2px solid #34405f}.bracket-stage:last-child .bracket-match::after{display:none}.bracket-player{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid #202a45;line-height:16px}.bracket-player:last-of-type{border-bottom:0}.bracket-player.winner{font-weight:900;color:#fff}.bracket-player .bs{min-width:24px;text-align:right;font-weight:900}.bracket-num{font-size:10px;color:#8f9bb9;margin-bottom:3px}.bracket-status{font-size:10px;color:#9ba6c3;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bracket-final{border-color:#a8893d;box-shadow:0 0 0 1px #a8893d55}.bracket-empty{padding:12px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);font-size:12px}
+.bracket-wrap{overflow:auto;padding:8px 2px 18px}.bracket-section{margin-bottom:28px}.bracket-section-title{font-size:17px;font-weight:900;margin:0 0 10px;color:#e8edff;display:flex;align-items:center;gap:8px}.bracket-board{display:flex;gap:34px;align-items:flex-start;min-width:max-content;padding:4px 18px 14px}.bracket-stage{width:220px;position:relative;flex:0 0 220px}.bracket-stage h4{height:20px;margin:0 0 10px;text-align:center;color:#c7d2f4;font-size:13px}.bracket-stage-body{position:relative;height:768px;overflow:visible}.bracket-match{box-sizing:border-box;width:220px;height:82px;background:#0d1426;border:1px solid var(--line);border-radius:12px;padding:8px 10px;position:absolute;left:0;box-shadow:0 4px 12px #0002}.bracket-match.playing{border-color:#4f78ff;box-shadow:0 0 0 1px #4f78ff33,0 5px 16px #0004}.bracket-match.done{opacity:.78}.bracket-match.waiting{border-color:#6d7898}.bracket-match::after{content:"";position:absolute;right:-34px;top:50%;width:34px;border-top:2px solid #34405f}.bracket-player{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid #202a45;line-height:16px}.bracket-player:last-of-type{border-bottom:0}.bracket-player.winner{font-weight:900;color:#fff}.bracket-player .bs{min-width:24px;text-align:right;font-weight:900}.bracket-num{font-size:10px;color:#8f9bb9;margin-bottom:3px}.bracket-status{font-size:10px;color:#9ba6c3;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bracket-final{border-color:#a8893d;box-shadow:0 0 0 1px #a8893d55}.bracket-empty{padding:12px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);font-size:12px}
 .mapbox{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}.maps{display:grid;grid-template-columns:repeat(5,minmax(110px,1fr));gap:8px;margin-top:8px}.mapbtn{padding:10px 6px;min-height:52px;border:1px solid var(--line);background:#141d35}.mapbtn.banned{opacity:.35;text-decoration:line-through}.mapbtn.selected{border-color:var(--good);background:#123b30}.mapbtn.current{border-color:var(--accent);box-shadow:0 0 0 1px #4f78ff33}.map-step{font-size:12px;color:#c7d2f4;margin-bottom:5px}.vote-box{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}.vote-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.vote-card{border:1px solid var(--line);border-radius:10px;padding:10px;background:#10182b}.vote-card.ok{border-color:#246c55}.modal-back{position:fixed;inset:0;background:#0009;display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}.modal{width:min(720px,100%);max-height:90vh;overflow:auto;background:#11192c;border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 20px 80px #0008}.ban-row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.turn{padding:8px 10px;border-radius:9px;background:#202c4a;color:#dce5ff}.result-buttons{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.result-buttons button{min-height:52px}
 @media(max-width:800px){.half,.third{grid-column:span 12}.wrap{padding:12px}.brand{font-size:20px}.maps{grid-template-columns:repeat(2,1fr)}.result-buttons{grid-template-columns:1fr}.bracket-col{width:200px}}
 
@@ -233,21 +233,56 @@ function renderBracket(){
   if(!matches.length){$('bracket').innerHTML='<div class="muted">大会開始後にトーナメントが表示されます。</div>';return}
   const wb=matches.filter(m=>m.bracket==='WB'&&!m.hidden).sort((a,b)=>a.round-b.round||a.index-b.index);
   const lb=matches.filter(m=>m.bracket==='LB'&&!m.hidden).sort((a,b)=>a.round-b.round||a.index-b.index);
-  const gf=matches.find(m=>m.bracket==='GF');
-  const CARD=88,GAP=20;
-  const stageHtml=(list,max,prefix)=>Array.from({length:max},(_,ri)=>{
-    const r=ri+1,ms=list.filter(m=>m.round===r);if(!ms.length)return '';
-    const prevCount=list.filter(m=>m.round===r-1).length;
-    const gap=Math.max(GAP,Math.round((CARD+GAP)*(Math.pow(2,r-1)-1)));
-    const step=CARD+gap;
-    const totalH=Math.max(120,ms.length*step-gap);
-    const topOffset=r===1?0:Math.round((prevCount>0?((prevCount*(CARD+GAP)-GAP)-totalH)/2:0));
-    const cards=ms.map((m,i)=>`<div class="bracket-card-pos" style="top:${Math.max(0,topOffset)+i*step}px">${bracketCard(m)}</div>`).join('');
-    return `<div class="bracket-stage" style="min-height:${totalH+36}px"><h4>${prefix}${r===max?'決勝':r===max-1?'準決勝':`R${r}`}</h4><div class="bracket-stage-body" style="height:${totalH}px">${cards}</div></div>`;
-  }).join('');
-  const gfHtml=gf?`<div class="bracket-stage gf-stage"><h4>グランドファイナル</h4><div class="bracket-stage-body" style="height:280px"><div class="bracket-card-pos" style="top:96px">${bracketCard(gf,true)}</div></div></div>`:'';
-  $('bracket').innerHTML=`<div class="bracket-section"><div class="bracket-section-title">🏆 勝者側トーナメント</div><div class="bracket-scroll"><div class="bracket-board">${stageHtml(wb,Math.max(0,...wb.map(m=>m.round)),'')}${gfHtml}</div></div></div>
-  <div class="bracket-section"><div class="bracket-section-title">💀 敗者側トーナメント</div><div class="bracket-scroll"><div class="bracket-board">${stageHtml(lb,Math.max(0,...lb.map(m=>m.round)),'LB ')}</div></div></div>`;
+  const gf=matches.find(m=>m.bracket==='GF'&&!m.hidden);
+  const CARD_H=82, UNIT=58;
+
+  // 勝者側：各ラウンドのカード中心を完全に倍々で配置。
+  // 例）16人なら R1=1,3,5... / R2=2,6... / SF=4,12 / F=8
+  const wbStage=(r,max)=>{
+    const ms=wb.filter(m=>m.round===r); if(!ms.length)return '';
+    const centers=ms.map((m,i)=>(2*i+1)*Math.pow(2,r-1));
+    const maxCenter=Math.pow(2,max);
+    const height=maxCenter*UNIT+UNIT;
+    const cards=ms.map((m,i)=>{
+      const top=Math.round(centers[i]*UNIT-CARD_H/2);
+      return `<div class="bracket-card-pos" style="top:${top}px">${bracketCard(m)}</div>`;
+    }).join('');
+    const title=r===max?'決勝':r===max-1?'準決勝':r===max-2?'準々決勝':`R${r}`;
+    return `<div class="bracket-stage"><h4>${title}</h4><div class="bracket-stage-body" style="height:${height}px">${cards}</div></div>`;
+  };
+
+  // 敗者側：同じ高さのラウンドは同じ中心位置、次の段階で中央へ詰める。
+  // 16人なら R1/R2=4試合、R3/R4=2試合、R5/R6=1試合。
+  const lbStage=(r,max)=>{
+    const ms=lb.filter(m=>m.round===r); if(!ms.length)return '';
+    const scale=Math.pow(2,Math.floor((r-1)/2));
+    const centers=ms.map((m,i)=>(2*i+1)*scale);
+    const maxCenter=Math.pow(2,Math.ceil(max/2));
+    const height=maxCenter*UNIT+UNIT;
+    const cards=ms.map((m,i)=>{
+      const top=Math.round(centers[i]*UNIT-CARD_H/2);
+      return `<div class="bracket-card-pos" style="top:${top}px">${bracketCard(m)}</div>`;
+    }).join('');
+    const title=`R${r}`;
+    return `<div class="bracket-stage"><h4>${title}</h4><div class="bracket-stage-body" style="height:${height}px">${cards}</div></div>`;
+  };
+
+  const wbMax=Math.max(0,...wb.map(m=>m.round));
+  const lbMax=Math.max(0,...lb.map(m=>m.round));
+  const wbStages=Array.from({length:wbMax},(_,i)=>wbStage(i+1,wbMax)).join('');
+  const lbStages=Array.from({length:lbMax},(_,i)=>lbStage(i+1,lbMax)).join('');
+
+  const gfHtml=gf?`<div class="bracket-stage gf-stage"><h4>グランドファイナル</h4><div class="bracket-stage-body" style="height:${Math.pow(2,wbMax)*UNIT+UNIT}px"><div class="bracket-card-pos" style="top:${Math.round(Math.pow(2,wbMax)*UNIT-CARD_H/2)}px">${bracketCard(gf,true)}</div></div></div>`:'';
+
+  $('bracket').innerHTML=`
+    <div class="bracket-section">
+      <div class="bracket-section-title">🏆 勝者側トーナメント</div>
+      <div class="bracket-scroll"><div class="bracket-board">${wbStages}${gfHtml}</div></div>
+    </div>
+    <div class="bracket-section">
+      <div class="bracket-section-title">💀 敗者側トーナメント</div>
+      <div class="bracket-scroll"><div class="bracket-board">${lbStages}</div></div>
+    </div>`;
 }
 function render(){
   $('eventSub').textContent=event.name||'Smash Tournament';$('statusPill').textContent=event.status==='started'?'大会進行中':'参加受付中';
