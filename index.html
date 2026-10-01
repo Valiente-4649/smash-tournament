@@ -111,7 +111,7 @@ function makeBracket(ps){
   for(let k=1;k<=sizes.length;k++)for(let i=0;i<sizes[k-1];i++){
     const m=out.find(x=>x.id===`lb${k}-${i+1}`);
     if(k===1){m.source1=`loser:wb1-${i*2+1}`;m.source2=`loser:wb1-${i*2+2}`}
-    else if(k%2===0){m.source1=`lb${k-1}-${i+1}`;const wr=k/2;m.source2=wr<=R?`loser:wb${wr}-${i+1}`:null}
+    else if(k%2===0){m.source1=`lb${k-1}-${i+1}`;const wr=k/2+1;m.source2=wr<=R?`loser:wb${wr}-${i+1}`:null}
     else {m.source1=`lb${k-1}-${i*2+1}`;m.source2=`lb${k-1}-${i*2+2}`}
   }
   const gf=base('GF-1');gf.bracket='GF';gf.round=R;gf.index=1;gf.source1=`wb${R}-1`;gf.source2=sizes.length?`lb${sizes.length}-1`:null;out.push(gf);
@@ -254,55 +254,47 @@ function renderBracket(){
   const wb=matches.filter(m=>m.bracket==='WB'&&!m.hidden).sort((a,b)=>a.round-b.round||a.index-b.index);
   const lb=matches.filter(m=>m.bracket==='LB'&&!m.hidden).sort((a,b)=>a.round-b.round||a.index-b.index);
   const gf=matches.find(m=>m.bracket==='GF'&&!m.hidden);
-  const CARD_H=82, UNIT=58;
+  const CARD_H=82, MIN_GAP=36;
 
-  // 勝者側：各ラウンドのカード中心を完全に倍々で配置。
-  // 例）16人なら R1=1,3,5... / R2=2,6... / SF=4,12 / F=8
-  const wbStage=(r,max)=>{
-    const ms=wb.filter(m=>m.round===r); if(!ms.length)return '';
-    const centers=ms.map((m,i)=>(2*i+1)*Math.pow(2,r-1));
-    const maxCenter=Math.pow(2,max);
-    const height=maxCenter*UNIT+UNIT;
-    const cards=ms.map((m,i)=>{
-      const top=Math.round(centers[i]*UNIT-CARD_H/2);
-      return `<div class="bracket-card-pos" style="top:${top}px">${bracketCard(m)}</div>`;
-    }).join('');
-    const title=r===max?'決勝':r===max-1?'準決勝':r===max-2?'準々決勝':`R${r}`;
-    return `<div class="bracket-stage"><h4>${title}</h4><div class="bracket-stage-body" style="height:${height}px">${cards}</div></div>`;
+  // 全ラウンドを「同じキャンバス高」に配置する。
+  // 各ラウンドのカード中心を均等配置するので、後半だけ下へずれることがない。
+  const layoutSection=(list, bracket)=>{
+    const maxRound=Math.max(0,...list.map(m=>m.round));
+    const roundCounts=Array.from({length:maxRound},(_,i)=>list.filter(m=>m.round===i+1).length);
+    const maxCount=Math.max(1,...roundCounts);
+    const boardH=Math.max(360,maxCount*(CARD_H+MIN_GAP));
+    const stages=[];
+    for(let r=1;r<=maxRound;r++){
+      const ms=list.filter(m=>m.round===r);
+      if(!ms.length)continue;
+      const cards=ms.map((m,i)=>{
+        const center=(i+.5)*boardH/ms.length;
+        const top=Math.round(center-CARD_H/2);
+        return `<div class="bracket-card-pos" style="top:${top}px">${bracketCard(m)}</div>`;
+      }).join('');
+      let title;
+      if(bracket==='WB') title=r===maxRound?'決勝':r===maxRound-1?'準決勝':r===maxRound-2?'準々決勝':`R${r}`;
+      else title=`R${r}`;
+      stages.push({html:`<div class="bracket-stage"><h4>${title}</h4><div class="bracket-stage-body" style="height:${boardH}px">${cards}</div></div>`,boardH,round:r,count:ms.length});
+    }
+    return {stages,maxRound,boardH};
   };
 
-  // 敗者側：同じ高さのラウンドは同じ中心位置、次の段階で中央へ詰める。
-  // 16人なら R1/R2=4試合、R3/R4=2試合、R5/R6=1試合。
-  const lbStage=(r,max)=>{
-    const ms=lb.filter(m=>m.round===r); if(!ms.length)return '';
-    const scale=Math.pow(2,Math.floor((r-1)/2));
-    const centers=ms.map((m,i)=>(2*i+1)*scale);
-    const maxCenter=Math.pow(2,Math.ceil(max/2));
-    const height=maxCenter*UNIT+UNIT;
-    const cards=ms.map((m,i)=>{
-      const top=Math.round(centers[i]*UNIT-CARD_H/2);
-      return `<div class="bracket-card-pos" style="top:${top}px">${bracketCard(m)}</div>`;
-    }).join('');
-    const title=`R${r}`;
-    return `<div class="bracket-stage"><h4>${title}</h4><div class="bracket-stage-body" style="height:${height}px">${cards}</div></div>`;
-  };
-
-  const wbMax=Math.max(0,...wb.map(m=>m.round));
-  const lbMax=Math.max(0,...lb.map(m=>m.round));
-  const wbStages=Array.from({length:wbMax},(_,i)=>wbStage(i+1,wbMax)).join('');
-  const lbStages=Array.from({length:lbMax},(_,i)=>lbStage(i+1,lbMax)).join('');
-
-  // グランドファイナルは勝者側「決勝」の直後、同じ高さの位置に固定して横並びにする。
-  const gfHtml=gf?`<div class="bracket-stage gf-stage"><h4>グランドファイナル</h4><div class="bracket-stage-body" style="height:${Math.pow(2,wbMax)*UNIT+UNIT}px"><div class="bracket-card-pos" style="top:${Math.round(Math.pow(2,wbMax)*UNIT-CARD_H/2)}px">${bracketCard(gf,true)}</div></div></div>`:'';
+  const W=layoutSection(wb,'WB');
+  const L=layoutSection(lb,'LB');
+  const wbFinal=wb.find(m=>m.round===W.maxRound);
+  // WB決勝は1試合なので、その中心は常に boardH/2。GFも全く同じY座標に置く。
+  const gfTop=Math.round(W.boardH/2-CARD_H/2);
+  const gfHtml=gf?`<div class="bracket-stage gf-stage"><h4>グランドファイナル</h4><div class="bracket-stage-body" style="height:${W.boardH}px"><div class="bracket-card-pos" style="top:${gfTop}px">${bracketCard(gf,true)}</div></div></div>`:'';
 
   $('bracket').innerHTML=`
     <div class="bracket-section">
       <div class="bracket-section-title">🏆 勝者側トーナメント</div>
-      <div class="bracket-scroll"><div class="bracket-board">${wbStages}${gfHtml}</div></div>
+      <div class="bracket-scroll"><div class="bracket-board">${W.stages.map(x=>x.html).join('')}${gfHtml}</div></div>
     </div>
     <div class="bracket-section">
       <div class="bracket-section-title">💀 敗者側トーナメント</div>
-      <div class="bracket-scroll"><div class="bracket-board">${lbStages}</div></div>
+      <div class="bracket-scroll"><div class="bracket-board">${L.stages.map(x=>x.html).join('')}</div></div>
     </div>`;
 }
 function render(){
