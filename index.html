@@ -383,9 +383,30 @@ async function moveFirstRoundMatch(){
     const payload={};
     for(const k of ['p1','p2','p1Uid','p2Uid','p1Name','p2Name','s1','s2','status','table','winner','loser','winnerName','loserName','game','mapState','mapHistory','votes','hidden']) payload[k]=from[k]??null;
     const cleared={p1:null,p2:null,p1Uid:null,p2Uid:null,p1Name:null,p2Name:null,s1:0,s2:0,status:'pending',table:null,winner:null,loser:null,winnerName:null,loserName:null,game:1,mapState:null,mapHistory:[],votes:{},hidden:false};
-    const b=writeBatch(db);b.update(doc(matchesRef,to.id),payload);b.update(doc(matchesRef,from.id),cleared);await b.commit();
-    msg.textContent=`R1 #${from.index} → R1 #${to.index} に移動しました。`;
-    setTimeout(reconcileAndAssign,250);
+    // 移動前のR1から自動進出していた情報が、準決勝・決勝・敗者側・GFに残らないようにする。
+    // from / to を供給元として参照する全ての下流試合を再帰的に探し、いったん未確定へ戻す。
+    const affected=new Set([from.id,to.id]);
+    let grew=true;
+    while(grew){
+      grew=false;
+      for(const m of matches){
+        if(affected.has(m.id))continue;
+        const refs=[m.source1,m.source2].filter(Boolean).map(r=>sourceInfo(r)?.id).filter(Boolean);
+        if(refs.some(id=>affected.has(id))){affected.add(m.id);grew=true}
+      }
+    }
+    const downstream=[...affected].filter(id=>id!==from.id&&id!==to.id);
+    // 移動元自体は未定vs未定へ。移動先には対戦カードを丸ごと移す。
+    // 下流は「誰が上がってきたか」を再計算するため、選手・BYE結果・台割当を消して pending に戻す。
+    const resetDownstream={p1:null,p2:null,p1Uid:null,p2Uid:null,p1Name:null,p2Name:null,s1:0,s2:0,status:'pending',table:null,winner:null,loser:null,winnerName:null,loserName:null,game:1,mapState:null,mapHistory:[],votes:{},hidden:false};
+    const b=writeBatch(db);
+    b.update(doc(matchesRef,to.id),payload);
+    b.update(doc(matchesRef,from.id),cleared);
+    for(const id of downstream)b.update(doc(matchesRef,id),resetDownstream);
+    await b.commit();
+    msg.textContent=`R1 #${from.index} → R1 #${to.index} に移動しました。進出済みだった下流の枠も再計算します。`;
+    // onSnapshotで最新データを受け取ってから再計算する。古いmatchesを使うと移動前のBYEが復活するため少し待つ。
+    setTimeout(reconcileAndAssign,700);
   }catch(e){console.error(e);msg.textContent='移動に失敗しました: '+(e.message||e)}
 }
 $('moveMatchBtn').onclick=moveFirstRoundMatch;
