@@ -43,6 +43,7 @@
   <section id="adminPage" class="hidden"><div class="grid">
     <div id="loginCard" class="card half"><div class="title">管理者ログイン</div><div class="field"><label>メールアドレス</label><input id="adminEmail" type="email" autocomplete="username"></div><div class="field"><label>パスワード</label><input id="adminPass" type="password" autocomplete="current-password"></div><button id="loginBtn" class="primary">ログイン</button><div id="loginMsg" class="muted" style="margin-top:8px"></div></div>
     <div id="adminCard" class="card half hidden admin-panel"><div class="title">管理者パネル</div><div id="adminUser" class="notice success"></div><div class="field"><label>大会名</label><input id="eventNameInput" maxlength="60" value="Smash Tournament"></div><div class="field"><label>Switch / 対戦台数</label><input id="switchesInput" type="number" min="1" max="32" value="2"></div><div class="row"><button id="saveSettingsBtn">設定保存</button><button id="startBtn" class="primary">大会開始</button><button id="rebuildBtn">大会表を再生成</button><button id="resetBtn" class="danger">大会リセット</button><button id="logoutBtn">ログアウト</button></div><div id="adminMsg" class="muted" style="margin-top:8px"></div></div>
+    <div id="moveMatchCard" class="card hidden"><div class="title">初戦の場所を移動</div><div class="notice">勝者側R1の対戦カードを、空いている「未定 vs 未定」の枠へ移動できます。選手・スコア・台・マップピック状態はそのまま移動します。実際に勝敗が確定した試合は移動できません。</div><div class="row" style="margin-top:10px"><select id="moveFrom" style="min-width:220px;background:#0b1224;border:1px solid var(--line);color:#fff;border-radius:10px;padding:10px"></select><span>→</span><select id="moveTo" style="min-width:220px;background:#0b1224;border:1px solid var(--line);color:#fff;border-radius:10px;padding:10px"></select><button id="moveMatchBtn" class="primary">この場所へ移動</button></div><div id="moveMatchMsg" class="muted" style="margin-top:8px"></div></div>
     <div id="adminMatchesCard" class="card hidden"><div class="title">試合結果・台管理</div><div id="adminMatches" class="matches"></div></div>
   </div></section>
 
@@ -83,7 +84,12 @@ function normalizePlayers(ps){let n=1;while(n<ps.length)n*=2;return n}
 
 // 正しいダブルエリミネーションの配線。LBは2R-2ラウンドで、余分な「未定vs未定」を作らない。
 function makeBracket(ps){
-  const N=normalizePlayers(ps),R=Math.log2(N),slots=Array.from({length:N},(_,i)=>ps[i]||null),out=[];
+  const N=normalizePlayers(ps),R=Math.log2(N),slots=Array(N).fill(null),out=[];
+  // BYEが一か所に固まって、誰かが何戦もせず上位へ進むのを防ぐ。
+  // まず各R1カードに1人ずつ配置し、余った参加者を2人目として埋める。
+  const firstWave=Math.min(ps.length,N/2);
+  for(let i=0;i<firstWave;i++)slots[i*2]=ps[i];
+  for(let i=firstWave;i<ps.length;i++)slots[(i-firstWave)*2+1]=ps[i];
   const base=(id)=>({
     id,bracket:'',round:0,index:0,wbTotal:R,
     p1:null,p2:null,p1Uid:null,p2Uid:null,p1Name:null,p2Name:null,
@@ -343,13 +349,20 @@ function render(){
   $('playerList').innerHTML=players.length?players.map((p,i)=>`<div class="player"><b>${i+1}. ${esc(p.name)}</b></div>`).join(''):'<div class="muted">まだ参加者はいません。</div>';$('regPlayers').innerHTML=$('playerList').innerHTML;
   const mapPlaying=matches.filter(m=>m.status==='playing'&&!m.hidden);$('mapPageList').innerHTML=mapPlaying.length?mapPlaying.map(m=>`<div class="match playing"><div class="match-head"><b>台${m.table}：${esc(playerName(m.p1))} vs ${esc(playerName(m.p2))}</b><span class="tag">第${m.game||1}試合 / ${esc(boFor(m))}</span></div><div class="small muted" style="margin-top:6px">${esc(mapPhaseText(m))}</div><div class="row" style="margin-top:10px"><button data-open-map="${m.id}" class="primary">マップピックを開く</button>${m.mapState?.selected?`<span class="pill">選択：${esc(m.mapState.selected)}</span>`:''}</div></div>`).join(''):'<div class="muted">現在プレイ中の試合はありません。</div>';
   const sorted=[...matches].filter(m=>!m.hidden).sort((a,b)=>matchOrder(a)-matchOrder(b));$('matchList').innerHTML=sorted.length?sorted.map(m=>matchHTML(m,false)).join(''):'<div class="muted">大会開始後に試合が表示されます。</div>';
-  if(admin())$('adminMatches').innerHTML=sorted.map(m=>matchHTML(m,true)).join('');
+  if(admin()){
+    $('adminMatches').innerHTML=sorted.map(m=>matchHTML(m,true)).join('');
+    const movable=matches.filter(m=>m.bracket==='WB'&&m.round===1&&m.p1&&m.p2&&m.status!=='done');
+    const empty=matches.filter(m=>m.bracket==='WB'&&m.round===1&&!m.p1&&!m.p2);
+    $('moveFrom').innerHTML=movable.length?movable.map(m=>`<option value="${esc(m.id)}">R1 #${m.index}: ${esc(playerName(m.p1))} vs ${esc(playerName(m.p2))}</option>`).join(''):'<option value="">移動できる試合なし</option>';
+    $('moveTo').innerHTML=empty.length?empty.map(m=>`<option value="${esc(m.id)}">R1 #${m.index}: 未定 vs 未定</option>`).join(''):'<option value="">空き枠なし</option>';
+    $('moveMatchBtn').disabled=!movable.length||!empty.length;
+  }
   renderBracket();$('eventNameInput').value=event.name||'';$('switchesInput').value=event.switches||2;
   const regBtn=$('registerBtn');if(event.status==='started'){ $('regNotice').textContent='大会は開始済みのため参加登録できません。';regBtn.disabled=true;regBtn.textContent='参加受付終了';}else if(admin()){ $('regNotice').textContent='管理者としてログイン中です。参加登録する場合は管理者からログアウトしてください。';regBtn.disabled=true;regBtn.textContent='管理者ログイン中';}else if(!currentUser){$('regNotice').textContent='参加者用の匿名ログインを準備中です…';regBtn.disabled=true;regBtn.textContent='認証中…';}else{$('regNotice').textContent='匿名ログイン済み。名前を入力して登録できます。';regBtn.disabled=false;regBtn.textContent='この名前で参加登録';}
 }
 
 async function bootstrapAnon(){try{await authReady;if(currentUser)return;await signInAnonymously(auth)}catch(e){authError=`${e.code||'unknown'}: ${e.message||e}`;$('authPill').textContent='匿名ログイン失敗';$('regNotice').textContent=`匿名ログインに失敗しました。${e.code?` (${e.code})`:''}`;console.error(e);render()}}
-onAuthStateChanged(auth,u=>{currentUser=u;if(!authInitialized){authInitialized=true;resolveAuthReady(u)}if(u)authError='';$('authPill').textContent=u?(admin()?'管理者ログイン済み':'参加者モード'):'未ログイン';$('loginCard').classList.toggle('hidden',admin());$('adminCard').classList.toggle('hidden',!admin());$('adminMatchesCard').classList.toggle('hidden',!admin());if(admin())$('adminUser').textContent=`管理者UID: ${u.uid}`;render()});
+onAuthStateChanged(auth,u=>{currentUser=u;if(!authInitialized){authInitialized=true;resolveAuthReady(u)}if(u)authError='';$('authPill').textContent=u?(admin()?'管理者ログイン済み':'参加者モード'):'未ログイン';$('loginCard').classList.toggle('hidden',admin());$('adminCard').classList.toggle('hidden',!admin());$('adminMatchesCard').classList.toggle('hidden',!admin());$('moveMatchCard').classList.toggle('hidden',!admin());if(admin())$('adminUser').textContent=`管理者UID: ${u.uid}`;render()});
 function subscribe(){unsubs.forEach(f=>f());unsubs=[];unsubs.push(onSnapshot(eventRef,s=>{event=s.exists()?{...event,...s.data()}:{...event};render()}));unsubs.push(onSnapshot(query(playersRef,orderBy('createdAt','asc')),s=>{players=s.docs.map(d=>({id:d.id,...d.data()}));render()}));unsubs.push(onSnapshot(matchesRef,s=>{matches=s.docs.map(d=>({id:d.id,...d.data()}));render()}))}
 $('registerBtn').onclick=async()=>{const btn=$('registerBtn'),notice=$('regError');notice.classList.add('hidden');const name=$('nameInput').value.trim();if(!name){notice.textContent='プレイヤー名を入力してください。';notice.classList.remove('hidden');return}if(event.status==='started'){notice.textContent='大会はすでに開始されています。';notice.classList.remove('hidden');return}if(admin()){notice.textContent='管理者ログイン中は参加登録できません。';notice.classList.remove('hidden');return}btn.disabled=true;btn.textContent='登録中…';try{await authReady;if(!currentUser)await signInAnonymously(auth);if(!currentUser)throw Error(authError||'匿名ログインを確認できませんでした。');await addDoc(playersRef,{uid:currentUser.uid,name,createdAt:serverTimestamp()});$('nameInput').value='';$('regNotice').textContent=`「${name}」で参加登録しました！続けて別の参加者も登録できます。`;notice.textContent='登録完了！';notice.classList.remove('hidden')}catch(e){notice.textContent=`登録に失敗しました。${e.code?` (${e.code})`:''} ${e.message||''}`;notice.classList.remove('hidden')}finally{render()}};
 $('loginBtn').onclick=async()=>{try{await signInWithEmailAndPassword(auth,$('adminEmail').value.trim(),$('adminPass').value);$('loginMsg').textContent='ログインしました。'}catch(e){$('loginMsg').textContent='ログイン失敗: '+e.message}};
@@ -357,6 +370,25 @@ $('logoutBtn').onclick=()=>signOut(auth).then(()=>bootstrapAnon());
 $('saveSettingsBtn').onclick=async()=>{if(!admin())return;const name=$('eventNameInput').value.trim()||'Smash Tournament',sw=Math.max(1,Math.min(32,Number($('switchesInput').value)||1));await setDoc(eventRef,{name,switches:sw,status:event.status||'registration'},{merge:true});$('adminMsg').textContent='設定を保存しました。';setTimeout(reconcileAndAssign,100)};
 $('startBtn').onclick=async()=>{if(confirm(`参加者${players.length}人で大会を開始します。開始後は参加登録できません。よろしいですか？`))await startTournament()};
 $('rebuildBtn').onclick=async()=>await rebuildTournament();
+async function moveFirstRoundMatch(){
+  if(!admin())return;
+  const fromId=$('moveFrom').value,toId=$('moveTo').value,msg=$('moveMatchMsg');
+  const from=matches.find(m=>m.id===fromId),to=matches.find(m=>m.id===toId);
+  if(!from||!to){msg.textContent='移動元と移動先を選んでください。';return}
+  if(from.bracket!=='WB'||to.bracket!=='WB'||from.round!==1||to.round!==1){msg.textContent='勝者側R1同士でのみ移動できます。';return}
+  if(from.status==='done'||from.winner){msg.textContent='勝敗が確定した試合は移動できません。';return}
+  if(!from.p1||!from.p2||to.p1||to.p2){msg.textContent='「2人いる試合 → 未定vs未定」の組み合わせを選んでください。';return}
+  if(!confirm(`${playerName(from.p1)} vs ${playerName(from.p2)} を R1 #${to.index} に移動します。よろしいですか？`))return;
+  try{
+    const payload={};
+    for(const k of ['p1','p2','p1Uid','p2Uid','p1Name','p2Name','s1','s2','status','table','winner','loser','winnerName','loserName','game','mapState','mapHistory','votes','hidden']) payload[k]=from[k]??null;
+    const cleared={p1:null,p2:null,p1Uid:null,p2Uid:null,p1Name:null,p2Name:null,s1:0,s2:0,status:'pending',table:null,winner:null,loser:null,winnerName:null,loserName:null,game:1,mapState:null,mapHistory:[],votes:{},hidden:false};
+    const b=writeBatch(db);b.update(doc(matchesRef,to.id),payload);b.update(doc(matchesRef,from.id),cleared);await b.commit();
+    msg.textContent=`R1 #${from.index} → R1 #${to.index} に移動しました。`;
+    setTimeout(reconcileAndAssign,250);
+  }catch(e){console.error(e);msg.textContent='移動に失敗しました: '+(e.message||e)}
+}
+$('moveMatchBtn').onclick=moveFirstRoundMatch;
 $('resetBtn').onclick=async()=>{if(!admin())return;if(!confirm('大会をリセットして、試合データと参加者名簿をすべて削除し、再び参加受付に戻します。よろしいですか？'))return;try{await deleteAllMatches();await deleteAllPlayers();await setDoc(eventRef,{status:'registration',startedAt:null,playerCount:0},{merge:true});$('adminMsg').textContent='大会をリセットしました。試合データと参加者名簿を削除しました。';}catch(e){console.error(e);$('adminMsg').textContent='リセットに失敗しました: '+e.message;}};
 async function buildTournamentFromCurrentRoster(label='大会を開始しました！'){
   const snap=await getDocs(playersRef);
