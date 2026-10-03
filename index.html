@@ -170,6 +170,23 @@ function sideCanStillReceive(m,side,map){
   const ref=side==='p1'?m.source1:m.source2;
   return sourceCanProduce(ref,map);
 }
+function repairPrematureByes(ms){
+  // 以前に不戦勝扱いした試合でも、あとから本来の相手が上流から到着した場合は試合を復活させる。
+  // loser===null かつ 0-0 は実試合ではなく自動BYEとして確定した印。
+  const map=Object.fromEntries(ms.map(m=>[m.id,m]));let did=false;
+  for(const m of ms){
+    const autoByeDone=m.status==='done'&&m.loser==null&&Number(m.s1||0)===0&&Number(m.s2||0)===0;
+    if(!autoByeDone)continue;
+    const aPossible=sideCanStillReceive(m,'p1',map),bPossible=sideCanStillReceive(m,'p2',map);
+    const bothHere=!!m.p1&&!!m.p2;
+    const missingButComing=(!!m.p1&&!m.p2&&bPossible)||(!m.p1&&!!m.p2&&aPossible);
+    if(bothHere||missingButComing){
+      m.status='pending';m.table=null;m.winner=null;m.loser=null;m.winnerName=null;m.loserName=null;
+      m.s1=0;m.s2=0;m.game=1;m.mapState=null;m.mapHistory=[];m.votes={};did=true;
+    }
+  }
+  return did;
+}
 function autoByes(ms){
   const map=Object.fromEntries(ms.map(m=>[m.id,m]));let did=false;
   for(const m of ms){
@@ -214,6 +231,7 @@ async function reconcileAndAssign(){
   for(let pass=0;pass<100;pass++){
     const before=fresh.map(m=>[m.id,m.p1,m.p2,m.p1Uid,m.p2Uid,m.status,m.winner,m.loser,m.s1,m.s2,m.hidden].join('|')).join('\n');
     refreshSources(fresh);
+    repairPrematureByes(fresh);
     autoByes(fresh);
     refreshSources(fresh);
     const after=fresh.map(m=>[m.id,m.p1,m.p2,m.p1Uid,m.p2Uid,m.status,m.winner,m.loser,m.s1,m.s2,m.hidden].join('|')).join('\n');
@@ -221,7 +239,7 @@ async function reconcileAndAssign(){
   }
   updateStatuses(fresh);
   const batch=writeBatch(db);let writes=0;
-  for(const m of fresh){const old=matches.find(x=>x.id===m.id)||{};const patch={};for(const k of ['p1','p2','p1Uid','p2Uid','p1Name','p2Name','status','winner','loser','winnerName','loserName','s1','s2','hidden'])if(m[k]!==old[k])patch[k]=m[k]??null;if(Object.keys(patch).length){batch.update(doc(matchesRef,m.id),patch);writes++}}
+  for(const m of fresh){const old=matches.find(x=>x.id===m.id)||{};const patch={};for(const k of ['p1','p2','p1Uid','p2Uid','p1Name','p2Name','status','table','winner','loser','winnerName','loserName','s1','s2','game','mapState','mapHistory','votes','hidden'])if(m[k]!==old[k])patch[k]=m[k]??null;if(Object.keys(patch).length){batch.update(doc(matchesRef,m.id),patch);writes++}}
   if(writes)await batch.commit();
   const occupied=new Set(fresh.filter(m=>m.status==='playing'&&m.table).map(m=>m.table));const free=[];for(let i=1;i<=Number(event.switches||1);i++)if(!occupied.has(i))free.push(i);
   const candidates=fresh.filter(m=>m.status==='waiting'&&m.p1&&m.p2).sort((a,b)=>matchOrder(a)-matchOrder(b));const b2=writeBatch(db);let w2=0;for(const m of candidates){if(!free.length)break;b2.update(doc(matchesRef,m.id),{status:'playing',table:free.shift(),game:m.game||1,mapState:m.mapState||newMapState(1)});w2++}if(w2)await b2.commit();
@@ -372,7 +390,7 @@ function renderBracket(){
 }
 function render(){
   $('eventSub').textContent=event.name||'Smash Tournament';$('statusPill').textContent=event.status==='started'?'大会進行中':'参加受付中';
-  const playing=matches.filter(m=>m.status==='playing');$('playing').innerHTML=playing.length?playing.map(m=>`<div class="match playing"><div class="match-head"><b>台${m.table}</b><span class="tag">${esc(boFor(m))}</span></div><div class="scoreline"><div>${esc(playerName(m.p1))}<br>${esc(playerName(m.p2))}</div><div class="score">${m.s1} - ${m.s2}</div></div><div class="small muted">${m.mapState?.selected?`🗺️ ${esc(m.mapState.selected)}`:mapPhaseText(m)}</div></div>`).join(''):'<div class="muted">現在プレイ中の試合はありません。</div>';
+  const playing=matches.filter(m=>m.status==='playing');$('playing').innerHTML=playing.length?playing.map(m=>`<div class="match playing"><div class="match-head"><b>台${m.table}</b><span class="tag">${esc(boFor(m))}</span></div><div class="scoreline"><div>${esc(playerName(m.p1))}<br>${esc(playerName(m.p2))}</div><div class="score">${m.s1} - ${m.s2}</div></div><div class="small muted">${m.mapState?.selected?`🗺️ ${esc(m.mapState.selected)}`:mapPhaseText(m)}</div><div class="row" style="margin-top:10px"><button data-open-map="${m.id}" class="primary">🗺️ マップピック</button><button data-open-vote="${m.id}" ${m.mapState?.selected?'':'disabled'}>${m.mapState?.selected?'🏆 勝敗投票':'マップ選択後に投票'}</button></div></div>`).join(''):'<div class="muted">現在プレイ中の試合はありません。</div>';
   $('overview').innerHTML=`<div class="row"><span class="pill">${event.status==='started'?'進行中':'受付中'}</span><span class="pill">参加者 ${players.length}人</span><span class="pill">台 ${Number(event.switches||1)}台</span><span class="pill">準決勝までBO3</span><span class="pill">準決勝からBO5</span></div><p class="muted">${event.status==='started'?'対戦可能になった試合を上から順番に台へ自動割り当てします。結果は両選手の投票一致で確定します。':'参加登録後、管理者が「大会開始」を押すと対戦表が生成されます。'}</p>`;
   $('playerList').innerHTML=players.length?players.map((p,i)=>`<div class="player"><b>${i+1}. ${esc(p.name)}</b></div>`).join(''):'<div class="muted">まだ参加者はいません。</div>';$('regPlayers').innerHTML=$('playerList').innerHTML;
   const mapPlaying=matches.filter(m=>m.status==='playing'&&!m.hidden);$('mapPageList').innerHTML=mapPlaying.length?mapPlaying.map(m=>`<div class="match playing"><div class="match-head"><b>台${m.table}：${esc(playerName(m.p1))} vs ${esc(playerName(m.p2))}</b><span class="tag">第${m.game||1}試合 / ${esc(boFor(m))}</span></div><div class="small muted" style="margin-top:6px">${esc(mapPhaseText(m))}</div><div class="row" style="margin-top:10px"><button data-open-map="${m.id}" class="primary">マップピックを開く</button>${m.mapState?.selected?`<span class="pill">選択：${esc(m.mapState.selected)}</span>`:''}</div></div>`).join(''):'<div class="muted">現在プレイ中の試合はありません。</div>';
