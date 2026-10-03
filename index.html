@@ -42,7 +42,7 @@
 
   <section id="adminPage" class="hidden"><div class="grid">
     <div id="loginCard" class="card half"><div class="title">管理者ログイン</div><div class="field"><label>メールアドレス</label><input id="adminEmail" type="email" autocomplete="username"></div><div class="field"><label>パスワード</label><input id="adminPass" type="password" autocomplete="current-password"></div><button id="loginBtn" class="primary">ログイン</button><div id="loginMsg" class="muted" style="margin-top:8px"></div></div>
-    <div id="adminCard" class="card half hidden admin-panel"><div class="title">管理者パネル</div><div id="adminUser" class="notice success"></div><div class="field"><label>大会名</label><input id="eventNameInput" maxlength="60" value="Smash Tournament"></div><div class="field"><label>Switch / 対戦台数</label><input id="switchesInput" type="number" min="1" max="32" value="2"></div><div class="row"><button id="saveSettingsBtn">設定保存</button><button id="startBtn" class="primary">大会開始</button><button id="rebuildBtn">大会表を再生成</button><button id="resetBtn" class="danger">大会リセット</button><button id="logoutBtn">ログアウト</button></div><div id="adminMsg" class="muted" style="margin-top:8px"></div></div>
+    <div id="adminCard" class="card half hidden admin-panel"><div class="title">管理者パネル</div><div id="adminUser" class="notice success"></div><div class="field"><label>大会名</label><input id="eventNameInput" maxlength="60" value="Smash Tournament"></div><div class="field"><label>Switch / 対戦台数</label><input id="switchesInput" type="number" min="1" max="32" value="2"></div><div class="row"><button id="saveSettingsBtn">設定保存</button><button id="repairBtn" class="good">🔧 進行を修復</button><button id="startBtn" class="primary">大会開始</button><button id="rebuildBtn">大会表を再生成</button><button id="resetBtn" class="danger">大会リセット</button><button id="logoutBtn">ログアウト</button></div><div id="adminMsg" class="muted" style="margin-top:8px"></div></div>
     <div id="moveMatchCard" class="card hidden"><div class="title">初戦の場所を移動</div><div class="notice">勝者側R1の対戦カードを、空いている「未定 vs 未定」の枠へ移動できます。選手・スコア・台・マップピック状態はそのまま移動します。実際に勝敗が確定した試合は移動できません。</div><div class="row" style="margin-top:10px"><select id="moveFrom" style="min-width:220px;background:#0b1224;border:1px solid var(--line);color:#fff;border-radius:10px;padding:10px"></select><span>→</span><select id="moveTo" style="min-width:220px;background:#0b1224;border:1px solid var(--line);color:#fff;border-radius:10px;padding:10px"></select><button id="moveMatchBtn" class="primary">この場所へ移動</button></div><div id="moveMatchMsg" class="muted" style="margin-top:8px"></div></div>
     <div id="adminMatchesCard" class="card hidden"><div class="title">試合結果・台管理</div><div id="adminMatches" class="matches"></div></div>
   </div></section>
@@ -149,6 +149,26 @@ function refreshSources(ms){
   }
   return ms;
 }
+// 上流の試合結果を唯一の正解として、R2以降の選手欄を毎回作り直す。
+// 古いBYEや移動前の選手が残っていても自動で消して正しい勝者/敗者を入れ直す。
+function hardRepairSources(ms){
+  const map=Object.fromEntries(ms.map(m=>[m.id,m]));let changed=false;
+  for(const m of ms){
+    for(const side of ['p1','p2']){
+      const ref=side==='p1'?m.source1:m.source2;if(!ref)continue;
+      const info=sourceInfo(ref),src=info?map[info.id]:null;
+      let id=null,name=null,uid=null;
+      if(src&&src.status==='done'){
+        id=info.loser?(src.loser||null):(src.winner||null);
+        name=info.loser?(src.loserName||slotName(id)):(src.winnerName||slotName(id));
+        uid=playerUid(id)||(id===src.p1?src.p1Uid:id===src.p2?src.p2Uid:null);
+      }
+      const nk=side+'Name',uk=side+'Uid';
+      if(m[side]!==id||m[nk]!==name||m[uk]!==uid){m[side]=id;m[nk]=name;m[uk]=uid;changed=true;}
+    }
+  }
+  return changed;
+}
 // その供給元から「将来プレイヤーが来る可能性」があるかを再帰的に判定する。
 // winner経路: どちらか片方でも実在選手が来る可能性があれば true。
 // loser経路 : 両方に実在選手が来る可能性がある時だけ true（BYEの敗者は存在しないため）。
@@ -230,10 +250,13 @@ async function reconcileAndAssign(){
   // 1回の同期ですべて解決できるよう、配線更新と不戦勝判定を安定するまで繰り返す。
   for(let pass=0;pass<100;pass++){
     const before=fresh.map(m=>[m.id,m.p1,m.p2,m.p1Uid,m.p2Uid,m.status,m.winner,m.loser,m.s1,m.s2,m.hidden].join('|')).join('\n');
+    hardRepairSources(fresh);
     refreshSources(fresh);
     repairPrematureByes(fresh);
     autoByes(fresh);
+    hardRepairSources(fresh);
     refreshSources(fresh);
+    repairPrematureByes(fresh);
     const after=fresh.map(m=>[m.id,m.p1,m.p2,m.p1Uid,m.p2Uid,m.status,m.winner,m.loser,m.s1,m.s2,m.hidden].join('|')).join('\n');
     if(before===after)break;
   }
@@ -414,6 +437,7 @@ $('registerBtn').onclick=async()=>{const btn=$('registerBtn'),notice=$('regError
 $('loginBtn').onclick=async()=>{try{await signInWithEmailAndPassword(auth,$('adminEmail').value.trim(),$('adminPass').value);$('loginMsg').textContent='ログインしました。'}catch(e){$('loginMsg').textContent='ログイン失敗: '+e.message}};
 $('logoutBtn').onclick=()=>signOut(auth).then(()=>bootstrapAnon());
 $('saveSettingsBtn').onclick=async()=>{if(!admin())return;const name=$('eventNameInput').value.trim()||'Smash Tournament',sw=Math.max(1,Math.min(32,Number($('switchesInput').value)||1));await setDoc(eventRef,{name,switches:sw,status:event.status||'registration'},{merge:true});$('adminMsg').textContent='設定を保存しました。';setTimeout(reconcileAndAssign,100)};
+$('repairBtn').onclick=async()=>{if(!admin())return;$('adminMsg').textContent='進行データを点検・修復中…';await reconcileAndAssign();setTimeout(reconcileAndAssign,250);setTimeout(()=>{$('adminMsg').textContent='進行データの点検・修復を実行しました。';},500)};
 $('startBtn').onclick=async()=>{if(confirm(`参加者${players.length}人で大会を開始します。開始後は参加登録できません。よろしいですか？`))await startTournament()};
 $('rebuildBtn').onclick=async()=>await rebuildTournament();
 async function moveFirstRoundMatch(){
@@ -491,5 +515,8 @@ async function deleteAllMatches(){const snap=await getDocs(matchesRef);const b=w
 async function deleteAllPlayers(){const snap=await getDocs(playersRef);if(snap.empty)return;let batch=writeBatch(db),count=0;for(const d of snap.docs){batch.delete(d.ref);count++;if(count===450){await batch.commit();batch=writeBatch(db);count=0}}if(count)await batch.commit()}
 document.addEventListener('click',async e=>{const close=e.target.closest('#closeMapBtn,#closeVoteBtn');if(close){stopOpenMapLive();$('modalRoot').innerHTML='';return}const saveActor=e.target.closest('#saveActingPlayer');if(saveActor){const id=$('actingPlayerSelect').value;const mid=saveActor.dataset.actingMatch;const next=saveActor.dataset.nextAction;sessionStorage.setItem('actingPlayerId',id);$('modalRoot').innerHTML='';const mm=matches.find(x=>x.id===mid);if(mm){if(next==='map')openMap(mm);else if(next==='vote')openVote(mm)}return}const closeActor=e.target.closest('#closeActingPlayer');if(closeActor){stopOpenMapLive();$('modalRoot').innerHTML='';return}const mb=e.target.closest('[data-open-map]');if(mb){const m=matches.find(x=>x.id===mb.dataset.openMap);if(m){const ids=eligibleActingPlayers(m);if(ids.length>1)chooseActingPlayer(m,'map');else if(ids.length===1){sessionStorage.setItem('actingPlayerId',ids[0]);openMap(m)}else alert('この試合を操作できる参加者として認証されていません。')}return}const mapb=e.target.closest('[data-map-match]');if(mapb){const m=matches.find(x=>x.id===mapb.dataset.mapMatch);if(m)try{await mapAction(m,mapb.dataset.mapName)}catch(err){alert('マップ操作に失敗しました: '+err.message)}return}const vb=e.target.closest('[data-open-vote]');if(vb){const m=matches.find(x=>x.id===vb.dataset.openVote);if(m){const ids=eligibleActingPlayers(m);if(ids.length>1)chooseActingPlayer(m,'vote');else if(ids.length===1){sessionStorage.setItem('actingPlayerId',ids[0]);openVote(m)}else alert('この試合を操作できる参加者として認証されていません。')}return}const vote=e.target.closest('[data-vote-match]');if(vote){const m=matches.find(x=>x.id===vote.dataset.voteMatch);if(m)try{const actor=$('voteActorSelect')?.value||null;await submitVote(m,vote.dataset.winner,actor);if($('modalRoot').innerHTML&&m.status==='playing')openVote({...m,...(matches.find(x=>x.id===m.id)||{})});}catch(err){alert('投票に失敗しました: '+err.message)}return}});
 subscribe();bootstrapAnon();
+// 通信順や一時的な古いBYEが残っても、進行中は定期的に自己修復する。
+setInterval(()=>{if(event.status==='started'&&!document.hidden)reconcileAndAssign();},2000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&event.status==='started')setTimeout(reconcileAndAssign,100)});
 </script>
 </body></html>
