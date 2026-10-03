@@ -229,7 +229,8 @@ function mapPhaseText(m){const s=m.mapState;if(!s)return 'マップピック待�
 function mapButtons(m){const s=m.mapState;if(!s)return '';const pool=s.game===1?FIRST_MAPS:LATER_MAPS;return `<div class="map-step">${esc(mapPhaseText(m))}</div><div class="maps">${pool.map(x=>{const banned=!s.available?.includes(x),selected=s.selected===x;return `<button class="mapbtn ${banned?'banned':''} ${selected?'selected':''}" data-map-match="${m.id}" data-map-name="${esc(x)}" ${banned||selected?'disabled':''}><img src="${MAP_IMAGES[x]||''}" alt="${esc(x)}"><span class="mapname">${esc(x)}</span></button>`}).join('')}</div>`}
 function mapModal(m){const s=m.mapState||newMapState(m.game||1);const adminMode=admin();let who='';if(s.turn==='p1')who=playerName(m.p1);else if(s.turn==='p2')who=playerName(m.p2);else if(s.turn==='winner')who=playerName(s.previousWinner);else if(s.turn==='loser')who=playerName(s.previousLoser);
   return `<div class="modal-back"><div class="modal"><div class="title">マップピック：${esc(stageName(m))} / 第${s.game}試合</div><div class="notice">${esc(mapPhaseText(m))}${who?` — ${esc(who)}の操作`:''}</div><div class="ban-row">${s.bannedByP1?.length?`<span class="turn">${s.game===1?'先行拒否':'前試合の勝者拒否'}：${esc(s.bannedByP1.join(' / '))}</span>`:''}${s.bannedByP2?.length?`<span class="turn">後攻拒否：${esc(s.bannedByP2.join(' / '))}</span>`:''}</div>${mapButtons(m)}<div class="row" style="margin-top:14px"><button id="closeMapBtn">閉じる</button></div><div class="small muted" style="margin-top:10px">第1試合：先行1拒否 → 後攻2拒否 → 先行が残り2つから選択。第2試合以降：前試合の勝者2拒否 → 敗者1選択。</div></div></div>`}
-function openMap(m){$('modalRoot').innerHTML=mapModal(m)}
+function openMap(m){$('modalRoot').innerHTML=mapModal(m);const root=$('modalRoot').querySelector('.modal-back');if(root)root.dataset.liveMapMatch=m.id}
+function refreshOpenMapModal(){const root=$('modalRoot').querySelector('.modal-back[data-live-map-match]');if(!root)return;const m=matches.find(x=>x.id===root.dataset.liveMapMatch);if(!m||m.status!=='playing'){$('modalRoot').innerHTML='';return}openMap(m)}
 function canMapAct(m){return !!currentUser&&!!actingPlayerId(m)}
 async function mapAction(m,map){if(!canMapAct(m)||!m.mapState)return;const s=structuredClone(m.mapState);if(!s.available.includes(map)||s.selected)return;
   if(s.phase==='p1ban'&&actingPlayerId(m)===m.p1){s.available=s.available.filter(x=>x!==map);s.bannedByP1.push(map);s.phase='p2ban';s.turn='p2'}
@@ -242,6 +243,7 @@ async function mapAction(m,map){if(!canMapAct(m)||!m.mapState)return;const s=str
 }
 async function submitVote(m,winnerId,actorId=null){
   if(!currentUser||(!m.p1Uid&&!m.p2Uid))return;
+  if(!m.mapState?.selected)return alert(`第${m.game||1}試合のマップ選択が完了するまで結果投票はできません。`);
   const eligible=eligibleActingPlayers(m);
   const actor=actorId&&eligible.includes(actorId)?actorId:(eligible.length===1?eligible[0]:null);
   if(!actor)return alert('投票する参加者を選択してください。');
@@ -254,6 +256,7 @@ async function submitVote(m,winnerId,actorId=null){
     const live={id:snap.id,...snap.data()};
     // すでに終了した試合には、古い画面から追加投票されても絶対に加点しない。
     if(live.status==='done'){finished=true;return}
+    if(!live.mapState?.selected)throw Error(`第${live.game||1}試合のマップ選択が完了するまで結果投票はできません。`);
     if(winnerId!==live.p1&&winnerId!==live.p2)throw Error('対戦相手が更新されています。画面を開き直してください。');
     const liveSide=actor===live.p1?'p1':actor===live.p2?'p2':null;if(!liveSide)throw Error('この試合の参加者ではありません。');
     const votes={...(live.votes||{})};votes[liveSide]={winnerId,uid:currentUser.uid,at:Date.now()};
@@ -275,13 +278,13 @@ async function submitVote(m,winnerId,actorId=null){
   if(finished)setTimeout(reconcileAndAssign,200);render();
 }
 function voteModal(m){const v=m.votes||{};const ids=eligibleActingPlayers(m);const saved=actingPlayerId(m);const actor=saved&&ids.includes(saved)?saved:(ids.length===1?ids[0]:'');const opts=ids.map(id=>`<option value="${esc(id)}" ${id===actor?'selected':''}>${esc(playerName(id))}</option>`).join('');return `<div class="modal-back"><div class="modal"><div class="title">第${m.game||1}試合の結果を投票</div><div class="notice">${esc(playerName(m.p1))} vs ${esc(playerName(m.p2))} / ${boFor(m)}　現在 ${m.s1}-${m.s2}</div><div class="field" style="margin-top:12px"><label>投票する参加者</label><select id="voteActorSelect">${opts}</select></div><p class="small muted">上で参加者を選んでから、このゲームで勝った選手を押してください。<br>同じスマホでも「あ」→「い」と毎回切り替えて投票できます。</p><div class="result-buttons">${[m.p1,m.p2].map(w=>`<button data-vote-match="${m.id}" data-winner="${w}">${esc(playerName(w))} が第${m.game||1}試合に勝利</button>`).join('')}</div><div class="vote-grid" style="margin-top:12px"><div class="vote-card ${v.p1?'ok':''}"><b>${esc(playerName(m.p1))}</b><div class="small">${v.p1?`投票済み：${esc(playerName(v.p1.winnerId))}`:'未投票'}</div></div><div class="vote-card ${v.p2?'ok':''}"><b>${esc(playerName(m.p2))}</b><div class="small">${v.p2?`投票済み：${esc(playerName(v.p2.winnerId))}`:'未投票'}</div></div></div><div class="row" style="margin-top:14px"><button id="closeVoteBtn">閉じる</button></div></div></div>`}
-function openVote(m){$('modalRoot').innerHTML=voteModal(m)}
+function openVote(m){if(!m.mapState?.selected){alert(`第${m.game||1}試合のマップ選択が完了するまで結果投票はできません。`);return}$('modalRoot').innerHTML=voteModal(m)}
 
 function matchHTML(m,adminMode){
   const state=m.status==='playing'?`台${m.table}・プレイ中`:m.status==='waiting'?'待機中':m.status==='done'?'終了':'次待ち';
   const votes=m.votes||{},both=votes.p1&&votes.p2;
   let controls='';
-  if(m.status==='playing'&&m.p1&&m.p2){controls+=`<div class="row" style="margin-top:10px">${m.mapState?.selected?`<span class="pill">${esc(m.mapState.selected)}</span>`:''}<button data-open-map="${m.id}">マップピック</button><button data-open-vote="${m.id}">結果投票</button></div>`}
+  if(m.status==='playing'&&m.p1&&m.p2){controls+=`<div class="row" style="margin-top:10px">${m.mapState?.selected?`<span class="pill">${esc(m.mapState.selected)}</span>`:''}<button data-open-map="${m.id}">マップピック</button><button data-open-vote="${m.id}" ${m.mapState?.selected?'':'disabled'}>${m.mapState?.selected?'結果投票':'マップ選択後に投票可能'}</button></div>`}
   if(adminMode&&m.status==='playing'&&m.p1&&m.p2){controls+=`<div class="small muted" style="margin-top:8px">管理者確認：${both?'両者投票済み':'投票待ち'}</div>`}
   return `<div class="match ${m.status==='playing'?'playing':''} ${m.status==='done'?'done':''}"><div class="match-head"><b>${esc(stageName(m))} #${m.index}</b><span class="tag">${state} / ${boFor(m)}</span></div><div class="scoreline"><div>${esc(playerName(m.p1))}<br>${esc(playerName(m.p2))}</div><div class="score">${m.s1} - ${m.s2}</div></div>${m.winner?`<div class="small muted">勝者：${esc(playerName(m.winner))}</div>`:''}${m.status==='playing'?`<div class="small muted" style="margin-top:6px">${m.mapState?.selected?`現在のマップ：${esc(m.mapState.selected)}`:mapPhaseText(m)}</div>`:''}${controls}</div>`;
 }
@@ -363,7 +366,7 @@ function render(){
 
 async function bootstrapAnon(){try{await authReady;if(currentUser)return;await signInAnonymously(auth)}catch(e){authError=`${e.code||'unknown'}: ${e.message||e}`;$('authPill').textContent='匿名ログイン失敗';$('regNotice').textContent=`匿名ログインに失敗しました。${e.code?` (${e.code})`:''}`;console.error(e);render()}}
 onAuthStateChanged(auth,u=>{currentUser=u;if(!authInitialized){authInitialized=true;resolveAuthReady(u)}if(u)authError='';$('authPill').textContent=u?(admin()?'管理者ログイン済み':'参加者モード'):'未ログイン';$('loginCard').classList.toggle('hidden',admin());$('adminCard').classList.toggle('hidden',!admin());$('adminMatchesCard').classList.toggle('hidden',!admin());$('moveMatchCard').classList.toggle('hidden',!admin());if(admin())$('adminUser').textContent=`管理者UID: ${u.uid}`;render()});
-function subscribe(){unsubs.forEach(f=>f());unsubs=[];unsubs.push(onSnapshot(eventRef,s=>{event=s.exists()?{...event,...s.data()}:{...event};render()}));unsubs.push(onSnapshot(query(playersRef,orderBy('createdAt','asc')),s=>{players=s.docs.map(d=>({id:d.id,...d.data()}));render()}));unsubs.push(onSnapshot(matchesRef,s=>{matches=s.docs.map(d=>({id:d.id,...d.data()}));render()}))}
+function subscribe(){unsubs.forEach(f=>f());unsubs=[];unsubs.push(onSnapshot(eventRef,s=>{event=s.exists()?{...event,...s.data()}:{...event};render()}));unsubs.push(onSnapshot(query(playersRef,orderBy('createdAt','asc')),s=>{players=s.docs.map(d=>({id:d.id,...d.data()}));render()}));unsubs.push(onSnapshot(matchesRef,s=>{matches=s.docs.map(d=>({id:d.id,...d.data()}));render();refreshOpenMapModal()}))}
 $('registerBtn').onclick=async()=>{const btn=$('registerBtn'),notice=$('regError');notice.classList.add('hidden');const name=$('nameInput').value.trim();if(!name){notice.textContent='プレイヤー名を入力してください。';notice.classList.remove('hidden');return}if(event.status==='started'){notice.textContent='大会はすでに開始されています。';notice.classList.remove('hidden');return}if(admin()){notice.textContent='管理者ログイン中は参加登録できません。';notice.classList.remove('hidden');return}btn.disabled=true;btn.textContent='登録中…';try{await authReady;if(!currentUser)await signInAnonymously(auth);if(!currentUser)throw Error(authError||'匿名ログインを確認できませんでした。');await addDoc(playersRef,{uid:currentUser.uid,name,createdAt:serverTimestamp()});$('nameInput').value='';$('regNotice').textContent=`「${name}」で参加登録しました！続けて別の参加者も登録できます。`;notice.textContent='登録完了！';notice.classList.remove('hidden')}catch(e){notice.textContent=`登録に失敗しました。${e.code?` (${e.code})`:''} ${e.message||''}`;notice.classList.remove('hidden')}finally{render()}};
 $('loginBtn').onclick=async()=>{try{await signInWithEmailAndPassword(auth,$('adminEmail').value.trim(),$('adminPass').value);$('loginMsg').textContent='ログインしました。'}catch(e){$('loginMsg').textContent='ログイン失敗: '+e.message}};
 $('logoutBtn').onclick=()=>signOut(auth).then(()=>bootstrapAnon());
