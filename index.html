@@ -200,8 +200,13 @@ function matchOrder(m){if(m.bracket==='WB')return m.round*1000+m.index;if(m.brac
 function stageName(m){return m.bracket==='WB'?labelRound(m.round,m.wbTotal):m.bracket==='LB'?`敗者側 R${m.round}`:'グランドファイナル'}
 function updateStatuses(ms){for(const m of ms){if(m.status==='done')continue;if(ready(m)&&!m.table&&m.status==='pending')m.status='waiting'}return ms}
 
+let reconcileBusy=false;
 async function reconcileAndAssign(){
-  if(!admin()||event.status!=='started')return;
+  // 試合進行は参加者の投票で確定するため、管理者がログインしていない端末でも
+  // 次戦の生成・空き台への自動割当まで進める。
+  if(event.status!=='started'||reconcileBusy)return;
+  reconcileBusy=true;
+  try{
   const fresh=matches.map(m=>{const x={...m,mapHistory:Array.isArray(m.mapHistory)?m.mapHistory:[],votes:m.votes||{}};const need=requiredWins(x);if(x.status==='done'){x.s1=Math.min(Number(x.s1||0),need);x.s2=Math.min(Number(x.s2||0),need)}return x;});
 
   // 「不戦勝で前の試合が確定 → その勝者が次へ進む → 次も不戦勝…」を
@@ -220,6 +225,7 @@ async function reconcileAndAssign(){
   if(writes)await batch.commit();
   const occupied=new Set(fresh.filter(m=>m.status==='playing'&&m.table).map(m=>m.table));const free=[];for(let i=1;i<=Number(event.switches||1);i++)if(!occupied.has(i))free.push(i);
   const candidates=fresh.filter(m=>m.status==='waiting'&&m.p1&&m.p2).sort((a,b)=>matchOrder(a)-matchOrder(b));const b2=writeBatch(db);let w2=0;for(const m of candidates){if(!free.length)break;b2.update(doc(matchesRef,m.id),{status:'playing',table:free.shift(),game:m.game||1,mapState:m.mapState||newMapState(1)});w2++}if(w2)await b2.commit();
+  }finally{reconcileBusy=false}
 }
 function newMapState(game,previousWinner=null,previousLoser=null){
   return {game,phase:game===1?'p1ban':'winnerBan',available:[...(game===1?FIRST_MAPS:LATER_MAPS)],bannedByP1:[],bannedByP2:[],selected:null,turn:game===1?'p1':'winner',previousWinner,previousLoser,chooser:null};
@@ -385,7 +391,7 @@ function render(){
 
 async function bootstrapAnon(){try{await authReady;if(currentUser)return;await signInAnonymously(auth)}catch(e){authError=`${e.code||'unknown'}: ${e.message||e}`;$('authPill').textContent='匿名ログイン失敗';$('regNotice').textContent=`匿名ログインに失敗しました。${e.code?` (${e.code})`:''}`;console.error(e);render()}}
 onAuthStateChanged(auth,u=>{currentUser=u;if(!authInitialized){authInitialized=true;resolveAuthReady(u)}if(u)authError='';$('authPill').textContent=u?(admin()?'管理者ログイン済み':'参加者モード'):'未ログイン';$('loginCard').classList.toggle('hidden',admin());$('adminCard').classList.toggle('hidden',!admin());$('adminMatchesCard').classList.toggle('hidden',!admin());$('moveMatchCard').classList.toggle('hidden',!admin());if(admin())$('adminUser').textContent=`管理者UID: ${u.uid}`;render()});
-function subscribe(){unsubs.forEach(f=>f());unsubs=[];unsubs.push(onSnapshot(eventRef,s=>{event=s.exists()?{...event,...s.data()}:{...event};render()}));unsubs.push(onSnapshot(query(playersRef,orderBy('createdAt','asc')),s=>{players=s.docs.map(d=>({id:d.id,...d.data()}));render()}));unsubs.push(onSnapshot(matchesRef,s=>{matches=s.docs.map(d=>({id:d.id,...d.data()}));render();refreshOpenMapModal()}))}
+function subscribe(){unsubs.forEach(f=>f());unsubs=[];unsubs.push(onSnapshot(eventRef,s=>{event=s.exists()?{...event,...s.data()}:{...event};render()}));unsubs.push(onSnapshot(query(playersRef,orderBy('createdAt','asc')),s=>{players=s.docs.map(d=>({id:d.id,...d.data()}));render()}));unsubs.push(onSnapshot(matchesRef,s=>{matches=s.docs.map(d=>({id:d.id,...d.data()}));render();refreshOpenMapModal();if(event.status==='started')setTimeout(reconcileAndAssign,80)}))}
 $('registerBtn').onclick=async()=>{const btn=$('registerBtn'),notice=$('regError');notice.classList.add('hidden');const name=$('nameInput').value.trim();if(!name){notice.textContent='プレイヤー名を入力してください。';notice.classList.remove('hidden');return}if(event.status==='started'){notice.textContent='大会はすでに開始されています。';notice.classList.remove('hidden');return}if(admin()){notice.textContent='管理者ログイン中は参加登録できません。';notice.classList.remove('hidden');return}btn.disabled=true;btn.textContent='登録中…';try{await authReady;if(!currentUser)await signInAnonymously(auth);if(!currentUser)throw Error(authError||'匿名ログインを確認できませんでした。');await addDoc(playersRef,{uid:currentUser.uid,name,createdAt:serverTimestamp()});$('nameInput').value='';$('regNotice').textContent=`「${name}」で参加登録しました！続けて別の参加者も登録できます。`;notice.textContent='登録完了！';notice.classList.remove('hidden')}catch(e){notice.textContent=`登録に失敗しました。${e.code?` (${e.code})`:''} ${e.message||''}`;notice.classList.remove('hidden')}finally{render()}};
 $('loginBtn').onclick=async()=>{try{await signInWithEmailAndPassword(auth,$('adminEmail').value.trim(),$('adminPass').value);$('loginMsg').textContent='ログインしました。'}catch(e){$('loginMsg').textContent='ログイン失敗: '+e.message}};
 $('logoutBtn').onclick=()=>signOut(auth).then(()=>bootstrapAnon());
