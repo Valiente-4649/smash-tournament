@@ -44,7 +44,7 @@
     <div id="loginCard" class="card half"><div class="title">管理者ログイン</div><div class="field"><label>メールアドレス</label><input id="adminEmail" type="email" autocomplete="username"></div><div class="field"><label>パスワード</label><input id="adminPass" type="password" autocomplete="current-password"></div><button id="loginBtn" class="primary">ログイン</button><div id="loginMsg" class="muted" style="margin-top:8px"></div></div>
     <div id="adminCard" class="card half hidden admin-panel"><div class="title">管理者パネル</div><div id="adminUser" class="notice success"></div><div class="field"><label>大会名</label><input id="eventNameInput" maxlength="60" value="Smash Tournament"></div><div class="field"><label>Switch / 対戦台数</label><input id="switchesInput" type="number" min="1" max="32" value="2"></div><div class="row"><button id="saveSettingsBtn">設定保存</button><button id="repairBtn" class="good">🔧 進行を修復</button><button id="startBtn" class="primary">大会開始</button><button id="rebuildBtn">大会表を再生成</button><button id="resetBtn" class="danger">大会リセット</button><button id="logoutBtn">ログアウト</button></div><div id="adminMsg" class="muted" style="margin-top:8px"></div></div>
     <div id="moveMatchCard" class="card hidden"><div class="title">初戦の場所を移動</div><div class="notice">勝者側R1の対戦カードを、空いている「未定 vs 未定」の枠へ移動できます。選手・スコア・台・マップピック状態はそのまま移動します。実際に勝敗が確定した試合は移動できません。</div><div class="row" style="margin-top:10px"><select id="moveFrom" style="min-width:220px;background:#0b1224;border:1px solid var(--line);color:#fff;border-radius:10px;padding:10px"></select><span>→</span><select id="moveTo" style="min-width:220px;background:#0b1224;border:1px solid var(--line);color:#fff;border-radius:10px;padding:10px"></select><button id="moveMatchBtn" class="primary">この場所へ移動</button></div><div id="moveMatchMsg" class="muted" style="margin-top:8px"></div></div>
-    <div id="fixMatchCard" class="card hidden"><div class="title">対戦カードを直接修正</div><div class="notice">自動修復で直せない「本来この2人のはず」という対戦を管理者が指定できます。ここで直した対戦は自動修復に上書きされず、勝者はその先へ通常どおり進みます。</div><div class="field"><label>修正する試合</label><select id="fixMatchSelect"></select></div><div class="row" style="margin-top:10px"><select id="fixP1"></select><span>vs</span><select id="fixP2"></select><button id="fixMatchBtn" class="primary">この2人に修正</button></div><div id="fixMatchMsg" class="muted" style="margin-top:8px"></div></div>
+    <div id="fixMatchCard" class="card hidden"><div class="title">対戦カードを直接修正</div><div class="notice">全試合枠（未定・終了済み・GFを含む）を直接修正できます。「未定」も選択可能です。ここで指定した対戦は自動配線に上書きされず、その試合の勝者・敗者から先の勝者側／敗者側を再計算します。</div><div class="field"><label>修正する試合</label><select id="fixMatchSelect"></select></div><div class="row" style="margin-top:10px"><select id="fixP1"></select><span>vs</span><select id="fixP2"></select><button id="fixMatchBtn" class="primary">この2人に修正</button></div><div id="fixMatchMsg" class="muted" style="margin-top:8px"></div></div>
     <div id="adminMatchesCard" class="card hidden"><div class="title">試合結果・台管理</div><div id="adminMatches" class="matches"></div></div>
   </div></section>
 
@@ -132,6 +132,9 @@ function refreshSources(ms){
   while(changed&&guard++<80){
     changed=false;
     for(const m of ms){
+      // 管理者が直接指定した対戦は、その試合の参加者を上流ソースで上書きしない。
+      // ただしこの試合の winner / loser は通常通り下流へ供給される。
+      if(m.manualOverride)continue;
       for(const side of ['p1','p2']){
         const key=side==='p1'?'source1':'source2';
         const info=sourceInfo(m[key]);
@@ -214,6 +217,8 @@ function autoByes(ms){
   for(const m of ms){
     if(m.status!=='pending')continue;
     const a=m.p1,b=m.p2;
+    // 手動指定で片側を「未定」にした試合は、管理者が相手を決めるまでBYEにしない。
+    if(m.manualOverride && (!a || !b))continue;
     const aPossible=sideCanStillReceive(m,'p1',map);
     const bPossible=sideCanStillReceive(m,'p2',map);
 
@@ -427,10 +432,10 @@ function render(){
     $('moveFrom').innerHTML=movable.length?movable.map(m=>`<option value="${esc(m.id)}">R1 #${m.index}: ${esc(playerName(m.p1))} vs ${esc(playerName(m.p2))}</option>`).join(''):'<option value="">移動できる試合なし</option>';
     $('moveTo').innerHTML=empty.length?empty.map(m=>`<option value="${esc(m.id)}">R1 #${m.index}: 未定 vs 未定</option>`).join(''):'<option value="">空き枠なし</option>';
     $('moveMatchBtn').disabled=!movable.length||!empty.length;
-    const fixable=matches.filter(m=>m.bracket!=='GF'&&m.status!=='done'&&m.p1&&m.p2).sort((a,b)=>matchOrder(a)-matchOrder(b));
-    const sel=$('fixMatchSelect'); if(sel) sel.innerHTML=fixable.length?fixable.map(m=>`<option value="${esc(m.id)}">${esc(stageName(m))} #${m.index}: ${esc(slotName(m.p1,m.p1Name))} vs ${esc(slotName(m.p2,m.p2Name))}</option>`).join(''):'<option value="">修正できる対戦なし</option>';
-    const popts=players.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join(''); if($('fixP1'))$('fixP1').innerHTML=popts;if($('fixP2'))$('fixP2').innerHTML=popts;
-    if($('fixMatchBtn'))$('fixMatchBtn').disabled=!fixable.length||players.length<2;
+    const fixable=[...matches].sort((a,b)=>matchOrder(a)-matchOrder(b));
+    const sel=$('fixMatchSelect'); if(sel) sel.innerHTML=fixable.length?fixable.map(m=>`<option value="${esc(m.id)}">${esc(stageName(m))} #${m.index}: ${esc(slotName(m.p1,m.p1Name))} vs ${esc(slotName(m.p2,m.p2Name))} [${esc(m.status||'pending')}]</option>`).join(''):'<option value="">試合枠なし</option>';
+    const popts='<option value="">未定</option>'+players.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join(''); if($('fixP1'))$('fixP1').innerHTML=popts;if($('fixP2'))$('fixP2').innerHTML=popts;
+    if($('fixMatchBtn'))$('fixMatchBtn').disabled=!fixable.length;
   }
   renderBracket();$('eventNameInput').value=event.name||'';$('switchesInput').value=event.switches||2;
   const regBtn=$('registerBtn');if(event.status==='started'){ $('regNotice').textContent='大会は開始済みのため参加登録できません。';regBtn.disabled=true;regBtn.textContent='参加受付終了';}else if(admin()){ $('regNotice').textContent='管理者としてログイン中です。参加登録する場合は管理者からログアウトしてください。';regBtn.disabled=true;regBtn.textContent='管理者ログイン中';}else if(!currentUser){$('regNotice').textContent='参加者用の匿名ログインを準備中です…';regBtn.disabled=true;regBtn.textContent='認証中…';}else{$('regNotice').textContent='匿名ログイン済み。名前を入力して登録できます。';regBtn.disabled=false;regBtn.textContent='この名前で参加登録';}
@@ -443,7 +448,7 @@ $('registerBtn').onclick=async()=>{const btn=$('registerBtn'),notice=$('regError
 $('loginBtn').onclick=async()=>{try{await signInWithEmailAndPassword(auth,$('adminEmail').value.trim(),$('adminPass').value);$('loginMsg').textContent='ログインしました。'}catch(e){$('loginMsg').textContent='ログイン失敗: '+e.message}};
 $('logoutBtn').onclick=()=>signOut(auth).then(()=>bootstrapAnon());
 $('saveSettingsBtn').onclick=async()=>{if(!admin())return;const name=$('eventNameInput').value.trim()||'Smash Tournament',sw=Math.max(1,Math.min(32,Number($('switchesInput').value)||1));await setDoc(eventRef,{name,switches:sw,status:event.status||'registration'},{merge:true});$('adminMsg').textContent='設定を保存しました。';setTimeout(reconcileAndAssign,100)};
-$('repairBtn').onclick=async()=>{if(!admin())return;$('adminMsg').textContent='進行データを点検・修復中…';await reconcileAndAssign();setTimeout(reconcileAndAssign,250);setTimeout(()=>{$('adminMsg').textContent='進行データの点検・修復を実行しました。';},500)};
+$('repairBtn').onclick=async()=>{if(!admin())return;$('adminMsg').textContent='進行データを点検・修復中…';await reconcileAndAssign();setTimeout(reconcileAndAssign,250);setTimeout(()=>{$('adminMsg').textContent='勝者側・敗者側・BYE・手動指定を含めて進行データを再計算しました。';},500)};
 $('startBtn').onclick=async()=>{if(confirm(`参加者${players.length}人で大会を開始します。開始後は参加登録できません。よろしいですか？`))await startTournament()};
 $('rebuildBtn').onclick=async()=>await rebuildTournament();
 async function moveFirstRoundMatch(){
@@ -488,20 +493,24 @@ async function moveFirstRoundMatch(){
 $('moveMatchBtn').onclick=moveFirstRoundMatch;
 async function forceFixMatch(){
   if(!admin())return;
-  const mid=$('fixMatchSelect').value,p1=$('fixP1').value,p2=$('fixP2').value,msg=$('fixMatchMsg');
-  const m=matches.find(x=>x.id===mid),a=player(p1),b=player(p2);
-  if(!m||!a||!b){msg.textContent='試合と2人の参加者を選んでください。';return}
-  if(p1===p2){msg.textContent='同じ参加者同士にはできません。';return}
-  if(!confirm(`${a.name} vs ${b.name} に修正します。現在のこの試合のスコア・マップ選択はリセットされます。`))return;
+  const mid=$('fixMatchSelect').value,p1=$('fixP1').value||null,p2=$('fixP2').value||null,msg=$('fixMatchMsg');
+  const m=matches.find(x=>x.id===mid),a=p1?player(p1):null,b=p2?player(p2):null;
+  if(!m){msg.textContent='修正する試合枠を選んでください。';return}
+  if(p1&&p2&&p1===p2){msg.textContent='同じ参加者同士にはできません。';return}
+  const an=a?.name||'未定',bn=b?.name||'未定';
+  if(!confirm(`${stageName(m)} #${m.index} を ${an} vs ${bn} に修正します。現在のこの試合の結果・スコア・マップ選択はリセットされ、勝者側と敗者側の下流を再計算します。`))return;
   try{
-    // この試合より下流だけをリセット。修正した対戦そのものは manualOverride で自動配線から保護する。
+    // この試合を起点に、勝者経路・敗者経路・GFまで全下流を再計算する。
     const affected=new Set([m.id]);let grew=true;
     while(grew){grew=false;for(const x of matches){if(affected.has(x.id))continue;const refs=[x.source1,x.source2].filter(Boolean).map(r=>sourceInfo(r)?.id).filter(Boolean);if(refs.some(id=>affected.has(id))){affected.add(x.id);grew=true}}}
     const batch=writeBatch(db);
-    batch.update(doc(matchesRef,m.id),{p1:a.id,p2:b.id,p1Uid:a.uid||null,p2Uid:b.uid||null,p1Name:a.name,p2Name:b.name,s1:0,s2:0,status:'waiting',table:null,winner:null,loser:null,winnerName:null,loserName:null,game:1,mapState:null,mapHistory:[],votes:{},hidden:false,manualOverride:true});
+    const complete=!!p1&&!!p2;
+    batch.update(doc(matchesRef,m.id),{p1:p1,p2:p2,p1Uid:a?.uid||null,p2Uid:b?.uid||null,p1Name:a?.name||null,p2Name:b?.name||null,s1:0,s2:0,status:complete?'waiting':'pending',table:null,winner:null,loser:null,winnerName:null,loserName:null,game:1,mapState:null,mapHistory:[],votes:{},hidden:false,manualOverride:true});
     const reset={p1:null,p2:null,p1Uid:null,p2Uid:null,p1Name:null,p2Name:null,s1:0,s2:0,status:'pending',table:null,winner:null,loser:null,winnerName:null,loserName:null,game:1,mapState:null,mapHistory:[],votes:{},hidden:false,manualOverride:false};
     for(const id of affected)if(id!==m.id)batch.update(doc(matchesRef,id),reset);
-    await batch.commit();msg.textContent=`${a.name} vs ${b.name} に修正しました。下流も再計算します。`;setTimeout(reconcileAndAssign,700);
+    await batch.commit();
+    msg.textContent=`${stageName(m)} #${m.index} を ${an} vs ${bn} に修正しました。勝者側・敗者側・GFを再計算します。`;
+    setTimeout(reconcileAndAssign,700);setTimeout(reconcileAndAssign,1400);
   }catch(e){console.error(e);msg.textContent='修正に失敗しました: '+(e.message||e)}
 }
 $('fixMatchBtn').onclick=forceFixMatch;
