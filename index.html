@@ -229,7 +229,23 @@ function mapPhaseText(m){const s=m.mapState;if(!s)return 'マップピック待�
 function mapButtons(m){const s=m.mapState;if(!s)return '';const pool=s.game===1?FIRST_MAPS:LATER_MAPS;return `<div class="map-step">${esc(mapPhaseText(m))}</div><div class="maps">${pool.map(x=>{const banned=!s.available?.includes(x),selected=s.selected===x;return `<button class="mapbtn ${banned?'banned':''} ${selected?'selected':''}" data-map-match="${m.id}" data-map-name="${esc(x)}" ${banned||selected?'disabled':''}><img src="${MAP_IMAGES[x]||''}" alt="${esc(x)}"><span class="mapname">${esc(x)}</span></button>`}).join('')}</div>`}
 function mapModal(m){const s=m.mapState||newMapState(m.game||1);const adminMode=admin();let who='';if(s.turn==='p1')who=playerName(m.p1);else if(s.turn==='p2')who=playerName(m.p2);else if(s.turn==='winner')who=playerName(s.previousWinner);else if(s.turn==='loser')who=playerName(s.previousLoser);
   return `<div class="modal-back"><div class="modal"><div class="title">マップピック：${esc(stageName(m))} / 第${s.game}試合</div><div class="notice">${esc(mapPhaseText(m))}${who?` — ${esc(who)}の操作`:''}</div><div class="ban-row">${s.bannedByP1?.length?`<span class="turn">${s.game===1?'先行拒否':'前試合の勝者拒否'}：${esc(s.bannedByP1.join(' / '))}</span>`:''}${s.bannedByP2?.length?`<span class="turn">後攻拒否：${esc(s.bannedByP2.join(' / '))}</span>`:''}</div>${mapButtons(m)}<div class="row" style="margin-top:14px"><button id="closeMapBtn">閉じる</button></div><div class="small muted" style="margin-top:10px">第1試合：先行1拒否 → 後攻2拒否 → 先行が残り2つから選択。第2試合以降：前試合の勝者2拒否 → 敗者1選択。</div></div></div>`}
-function openMap(m){$('modalRoot').innerHTML=mapModal(m);const root=$('modalRoot').querySelector('.modal-back');if(root)root.dataset.liveMapMatch=m.id}
+let openMapUnsub=null;
+function stopOpenMapLive(){if(openMapUnsub){openMapUnsub();openMapUnsub=null}}
+function paintMapModal(m){$('modalRoot').innerHTML=mapModal(m);const root=$('modalRoot').querySelector('.modal-back');if(root)root.dataset.liveMapMatch=m.id}
+function openMap(m){
+  stopOpenMapLive();
+  paintMapModal(m);
+  // マップピック画面専用のリアルタイム監視。相手の操作を閉じ直さず即反映する。
+  openMapUnsub=onSnapshot(doc(matchesRef,m.id),snap=>{
+    if(!snap.exists())return;
+    const live={id:snap.id,...snap.data()};
+    const i=matches.findIndex(x=>x.id===live.id);if(i>=0)matches[i]=live;else matches.push(live);
+    const root=$('modalRoot').querySelector('.modal-back[data-live-map-match]');
+    if(!root||root.dataset.liveMapMatch!==live.id)return;
+    if(live.status!=='playing'){stopOpenMapLive();$('modalRoot').innerHTML='';return}
+    paintMapModal(live);
+  },err=>console.error('map live listener',err));
+}
 function refreshOpenMapModal(){const root=$('modalRoot').querySelector('.modal-back[data-live-map-match]');if(!root)return;const m=matches.find(x=>x.id===root.dataset.liveMapMatch);if(!m||m.status!=='playing'){$('modalRoot').innerHTML='';return}openMap(m)}
 function canMapAct(m){return !!currentUser&&!!actingPlayerId(m)}
 async function mapAction(m,map){if(!canMapAct(m)||!m.mapState)return;const s=structuredClone(m.mapState);if(!s.available.includes(map)||s.selected)return;
@@ -239,7 +255,10 @@ async function mapAction(m,map){if(!canMapAct(m)||!m.mapState)return;const s=str
   else if(s.phase==='winnerBan'&&s.previousWinner&&actingPlayerId(m)===s.previousWinner){s.available=s.available.filter(x=>x!==map);s.bannedByP1.push(map);if(s.bannedByP1.length<2){s.turn='winner'}else{s.phase='loserPick';s.turn='loser'}}
   else if(s.phase==='loserPick'&&s.previousLoser&&actingPlayerId(m)===s.previousLoser){s.selected=map;s.available=[map];s.chooser=s.previousLoser;s.phase='selected';s.turn=null}
   else {alert('今はあなたの操作ではありません。');return}
-  await updateDoc(doc(matchesRef,m.id),{mapState:s});openMap({...m,mapState:s});render();
+  // 自分の画面は即時反映し、Firestore の専用 listener が両者の画面を同期する。
+  paintMapModal({...m,mapState:s});
+  await updateDoc(doc(matchesRef,m.id),{mapState:s});
+  render();
 }
 async function submitVote(m,winnerId,actorId=null){
   if(!currentUser||(!m.p1Uid&&!m.p2Uid))return;
@@ -446,7 +465,7 @@ async function rebuildTournament(){
 }
 async function deleteAllMatches(){const snap=await getDocs(matchesRef);const b=writeBatch(db);snap.forEach(d=>b.delete(d.ref));await b.commit()}
 async function deleteAllPlayers(){const snap=await getDocs(playersRef);if(snap.empty)return;let batch=writeBatch(db),count=0;for(const d of snap.docs){batch.delete(d.ref);count++;if(count===450){await batch.commit();batch=writeBatch(db);count=0}}if(count)await batch.commit()}
-document.addEventListener('click',async e=>{const close=e.target.closest('#closeMapBtn,#closeVoteBtn');if(close){$('modalRoot').innerHTML='';return}const saveActor=e.target.closest('#saveActingPlayer');if(saveActor){const id=$('actingPlayerSelect').value;const mid=saveActor.dataset.actingMatch;const next=saveActor.dataset.nextAction;sessionStorage.setItem('actingPlayerId',id);$('modalRoot').innerHTML='';const mm=matches.find(x=>x.id===mid);if(mm){if(next==='map')openMap(mm);else if(next==='vote')openVote(mm)}return}const closeActor=e.target.closest('#closeActingPlayer');if(closeActor){$('modalRoot').innerHTML='';return}const mb=e.target.closest('[data-open-map]');if(mb){const m=matches.find(x=>x.id===mb.dataset.openMap);if(m){const ids=eligibleActingPlayers(m);if(ids.length>1)chooseActingPlayer(m,'map');else if(ids.length===1){sessionStorage.setItem('actingPlayerId',ids[0]);openMap(m)}else alert('この試合を操作できる参加者として認証されていません。')}return}const mapb=e.target.closest('[data-map-match]');if(mapb){const m=matches.find(x=>x.id===mapb.dataset.mapMatch);if(m)try{await mapAction(m,mapb.dataset.mapName)}catch(err){alert('マップ操作に失敗しました: '+err.message)}return}const vb=e.target.closest('[data-open-vote]');if(vb){const m=matches.find(x=>x.id===vb.dataset.openVote);if(m){const ids=eligibleActingPlayers(m);if(ids.length>1)chooseActingPlayer(m,'vote');else if(ids.length===1){sessionStorage.setItem('actingPlayerId',ids[0]);openVote(m)}else alert('この試合を操作できる参加者として認証されていません。')}return}const vote=e.target.closest('[data-vote-match]');if(vote){const m=matches.find(x=>x.id===vote.dataset.voteMatch);if(m)try{const actor=$('voteActorSelect')?.value||null;await submitVote(m,vote.dataset.winner,actor);if($('modalRoot').innerHTML&&m.status==='playing')openVote({...m,...(matches.find(x=>x.id===m.id)||{})});}catch(err){alert('投票に失敗しました: '+err.message)}return}});
+document.addEventListener('click',async e=>{const close=e.target.closest('#closeMapBtn,#closeVoteBtn');if(close){stopOpenMapLive();$('modalRoot').innerHTML='';return}const saveActor=e.target.closest('#saveActingPlayer');if(saveActor){const id=$('actingPlayerSelect').value;const mid=saveActor.dataset.actingMatch;const next=saveActor.dataset.nextAction;sessionStorage.setItem('actingPlayerId',id);$('modalRoot').innerHTML='';const mm=matches.find(x=>x.id===mid);if(mm){if(next==='map')openMap(mm);else if(next==='vote')openVote(mm)}return}const closeActor=e.target.closest('#closeActingPlayer');if(closeActor){stopOpenMapLive();$('modalRoot').innerHTML='';return}const mb=e.target.closest('[data-open-map]');if(mb){const m=matches.find(x=>x.id===mb.dataset.openMap);if(m){const ids=eligibleActingPlayers(m);if(ids.length>1)chooseActingPlayer(m,'map');else if(ids.length===1){sessionStorage.setItem('actingPlayerId',ids[0]);openMap(m)}else alert('この試合を操作できる参加者として認証されていません。')}return}const mapb=e.target.closest('[data-map-match]');if(mapb){const m=matches.find(x=>x.id===mapb.dataset.mapMatch);if(m)try{await mapAction(m,mapb.dataset.mapName)}catch(err){alert('マップ操作に失敗しました: '+err.message)}return}const vb=e.target.closest('[data-open-vote]');if(vb){const m=matches.find(x=>x.id===vb.dataset.openVote);if(m){const ids=eligibleActingPlayers(m);if(ids.length>1)chooseActingPlayer(m,'vote');else if(ids.length===1){sessionStorage.setItem('actingPlayerId',ids[0]);openVote(m)}else alert('この試合を操作できる参加者として認証されていません。')}return}const vote=e.target.closest('[data-vote-match]');if(vote){const m=matches.find(x=>x.id===vote.dataset.voteMatch);if(m)try{const actor=$('voteActorSelect')?.value||null;await submitVote(m,vote.dataset.winner,actor);if($('modalRoot').innerHTML&&m.status==='playing')openVote({...m,...(matches.find(x=>x.id===m.id)||{})});}catch(err){alert('投票に失敗しました: '+err.message)}return}});
 subscribe();bootstrapAnon();
 </script>
 </body></html>
