@@ -18,6 +18,26 @@
 .bracket-card-pos{position:absolute;left:0;width:230px}
 .bracket-match{box-sizing:border-box;min-height:88px;height:88px}
 .bracket-match::after{right:-43px;width:42px}
+
+/* compact tournament bracket for mobile readability */
+.bracket-board{gap:26px!important;padding:4px 14px 12px!important}
+.bracket-stage{width:190px!important;flex:0 0 190px!important}
+.bracket-card-pos{width:190px!important}
+.bracket-match{width:190px!important;min-height:72px!important;height:72px!important;padding:6px 8px!important;border-radius:10px!important}
+.bracket-match::after{right:-27px!important;width:26px!important}
+.bracket-player{padding:2px 0!important;line-height:14px!important;font-size:13px!important}
+.bracket-player .bs{min-width:20px!important;font-size:13px!important}
+.bracket-num,.bracket-status{font-size:9px!important}
+.bracket-stage h4{font-size:12px!important;margin-bottom:7px!important}
+@media(max-width:800px){
+ .bracket-board{gap:22px!important;padding-left:8px!important;padding-right:8px!important}
+ .bracket-stage{width:165px!important;flex-basis:165px!important}
+ .bracket-card-pos{width:165px!important}
+ .bracket-match{width:165px!important;min-height:66px!important;height:66px!important;padding:5px 7px!important}
+ .bracket-match::after{right:-23px!important;width:22px!important}
+ .bracket-player{font-size:12px!important;line-height:13px!important}
+ .bracket-status{margin-top:2px!important}
+}
 </style>
 </head>
 <body>
