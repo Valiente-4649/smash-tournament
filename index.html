@@ -118,11 +118,21 @@ function normalizePlayers(ps){let n=1;while(n<ps.length)n*=2;return n}
 // 正しいダブルエリミネーションの配線。LBは2R-2ラウンドで、余分な「未定vs未定」を作らない。
 function makeBracket(ps){
   const N=normalizePlayers(ps),R=Math.log2(N),slots=Array(N).fill(null),out=[];
-  // BYEが一か所に固まって、誰かが何戦もせず上位へ進むのを防ぐ。
-  // まず各R1カードに1人ずつ配置し、余った参加者を2人目として埋める。
-  const firstWave=Math.min(ps.length,N/2);
-  for(let i=0;i<firstWave;i++)slots[i*2]=ps[i];
-  for(let i=firstWave;i<ps.length;i++)slots[(i-firstWave)*2+1]=ps[i];
+  // 先に初戦で戦う人数を確定し、各山へ均等に分配する。
+  // N=16, 9人なら初戦は1カードのみ。残りは7人がBYE。
+  // シード枠は2回戦の各カードに最大1つずつ配置する。
+  const pairs=Math.max(0,ps.length-N/2);
+  const cardCount=N/2;
+  const positions=[];
+  // ビット反転順で試合を散らす（上下の山・準々決勝の山へ分散）。
+  const bits=Math.log2(cardCount);
+  for(let i=0;i<cardCount;i++){
+    let rev=0;for(let b=0;b<bits;b++)rev=(rev<<1)|((i>>b)&1);
+    positions.push(rev);
+  }
+  // 対戦するカードを分散させ、その他のカードはBYE。
+  for(let k=0;k<cardCount;k++)slots[positions[k]*2]=ps[k]||null;
+  for(let k=0;k<pairs;k++)slots[positions[k]*2+1]=ps[cardCount+k]||null;
   const base=(id)=>({
     id,bracket:'',round:0,index:0,wbTotal:R,
     p1:null,p2:null,p1Uid:null,p2Uid:null,p1Name:null,p2Name:null,
@@ -299,11 +309,19 @@ async function reconcileAndAssign(){
     const after=fresh.map(m=>[m.id,m.p1,m.p2,m.p1Uid,m.p2Uid,m.status,m.winner,m.loser,m.s1,m.s2,m.hidden].join('|')).join('\n');
     if(before===after)break;
   }
+  // 未定のままプレイ中になった古い試合データは、台を解放して再割当する。
+  // 試合の参加者が2人確定していない状態では操作画面を表示しない。
+  for(const m of fresh){
+    if(m.status==='playing'&&(!m.p1||!m.p2)){
+      m.status='pending';m.table=null;
+      m.mapState=null;m.votes={};
+    }
+  }
   updateStatuses(fresh);
   const batch=writeBatch(db);let writes=0;
   for(const m of fresh){const old=matches.find(x=>x.id===m.id)||{};const patch={};for(const k of ['p1','p2','p1Uid','p2Uid','p1Name','p2Name','status','table','winner','loser','winnerName','loserName','s1','s2','game','mapState','mapHistory','votes','hidden','manualOverride'])if(m[k]!==old[k])patch[k]=m[k]??null;if(Object.keys(patch).length){batch.update(doc(matchesRef,m.id),patch);writes++}}
   if(writes)await batch.commit();
-  const occupied=new Set(fresh.filter(m=>m.status==='playing'&&m.table).map(m=>m.table));const free=[];for(let i=1;i<=Number(event.switches||1);i++)if(!occupied.has(i))free.push(i);
+  const occupied=new Set(fresh.filter(m=>m.status==='playing'&&m.p1&&m.p2&&m.table).map(m=>m.table));const free=[];for(let i=1;i<=Number(event.switches||1);i++)if(!occupied.has(i))free.push(i);
   const candidates=fresh.filter(m=>m.status==='waiting'&&m.p1&&m.p2).sort((a,b)=>matchOrder(a)-matchOrder(b));const b2=writeBatch(db);let w2=0;for(const m of candidates){if(!free.length)break;b2.update(doc(matchesRef,m.id),{status:'playing',table:free.shift(),game:m.game||1,mapState:m.mapState||newMapState(1)});w2++}if(w2)await b2.commit();
   }finally{reconcileBusy=false}
 }
@@ -459,10 +477,10 @@ function renderBracket(){
 }
 function render(){
   $('eventSub').textContent=event.name||'Smash Tournament';$('statusPill').textContent=event.status==='started'?'大会進行中':'参加受付中';
-  const playing=matches.filter(m=>m.status==='playing');$('playing').innerHTML=playing.length?playing.map(m=>`<div class="match playing"><div class="match-head"><b>台${m.table}</b><span class="tag">${esc(boFor(m))}</span></div><div class="scoreline"><div>${esc(playerName(m.p1))}<br>${esc(playerName(m.p2))}</div><div class="score">${m.s1} - ${m.s2}</div></div><div class="small muted">${m.mapState?.selected?`🗺️ ${esc(m.mapState.selected)}`:mapPhaseText(m)}</div><div class="row" style="margin-top:10px"><button data-open-map="${m.id}" class="primary">🗺️ マップピック</button><button data-open-vote="${m.id}" ${m.mapState?.selected?'':'disabled'}>${m.mapState?.selected?'🏆 勝敗投票':'マップ選択後に投票'}</button></div></div>`).join(''):'<div class="muted">現在プレイ中の試合はありません。</div>';
+  const playing=matches.filter(m=>m.status==='playing'&&m.p1&&m.p2&&!m.hidden);$('playing').innerHTML=playing.length?playing.map(m=>`<div class="match playing"><div class="match-head"><b>台${m.table}</b><span class="tag">${esc(boFor(m))}</span></div><div class="scoreline"><div>${esc(playerName(m.p1))}<br>${esc(playerName(m.p2))}</div><div class="score">${m.s1} - ${m.s2}</div></div><div class="small muted">${m.mapState?.selected?`🗺️ ${esc(m.mapState.selected)}`:mapPhaseText(m)}</div><div class="row" style="margin-top:10px"><button data-open-map="${m.id}" class="primary">🗺️ マップピック</button><button data-open-vote="${m.id}" ${m.mapState?.selected?'':'disabled'}>${m.mapState?.selected?'🏆 勝敗投票':'マップ選択後に投票'}</button></div></div>`).join(''):'<div class="muted">現在プレイ中の試合はありません。</div>';
   $('overview').innerHTML=`<div class="row"><span class="pill">${event.status==='started'?'進行中':'受付中'}</span><span class="pill">参加者 ${players.length}人</span><span class="pill">台 ${Number(event.switches||1)}台</span><span class="pill">準決勝までBO3</span><span class="pill">準決勝からBO5</span></div><p class="muted">${event.status==='started'?'対戦可能になった試合を上から順番に台へ自動割り当てします。結果は両選手の投票一致で確定します。':'参加登録後、管理者が「大会開始」を押すと対戦表が生成されます。'}</p>`;
   $('playerList').innerHTML=players.length?players.map((p,i)=>`<div class="player"><b>${i+1}. ${esc(p.name)}</b></div>`).join(''):'<div class="muted">まだ参加者はいません。</div>';$('regPlayers').innerHTML=$('playerList').innerHTML;
-  const mapPlaying=matches.filter(m=>m.status==='playing'&&!m.hidden);$('mapPageList').innerHTML=mapPlaying.length?mapPlaying.map(m=>`<div class="match playing"><div class="match-head"><b>台${m.table}：${esc(playerName(m.p1))} vs ${esc(playerName(m.p2))}</b><span class="tag">第${m.game||1}試合 / ${esc(boFor(m))}</span></div><div class="small muted" style="margin-top:6px">${esc(mapPhaseText(m))}</div><div class="row" style="margin-top:10px"><button data-open-map="${m.id}" class="primary">マップピックを開く</button>${m.mapState?.selected?`<span class="pill">選択：${esc(m.mapState.selected)}</span>`:''}</div></div>`).join(''):'<div class="muted">現在プレイ中の試合はありません。</div>';
+  const mapPlaying=matches.filter(m=>m.status==='playing'&&m.p1&&m.p2&&!m.hidden);$('mapPageList').innerHTML=mapPlaying.length?mapPlaying.map(m=>`<div class="match playing"><div class="match-head"><b>台${m.table}：${esc(playerName(m.p1))} vs ${esc(playerName(m.p2))}</b><span class="tag">第${m.game||1}試合 / ${esc(boFor(m))}</span></div><div class="small muted" style="margin-top:6px">${esc(mapPhaseText(m))}</div><div class="row" style="margin-top:10px"><button data-open-map="${m.id}" class="primary">マップピックを開く</button>${m.mapState?.selected?`<span class="pill">選択：${esc(m.mapState.selected)}</span>`:''}</div></div>`).join(''):'<div class="muted">現在プレイ中の試合はありません。</div>';
   const sorted=[...matches].filter(m=>!m.hidden).sort((a,b)=>matchOrder(a)-matchOrder(b));$('matchList').innerHTML=sorted.length?sorted.map(m=>matchHTML(m,false)).join(''):'<div class="muted">大会開始後に試合が表示されます。</div>';
   if(admin()){
     $('adminMatches').innerHTML=sorted.map(m=>matchHTML(m,true)).join('');
@@ -572,6 +590,7 @@ async function buildTournamentFromCurrentRoster(label='大会を開始しまし�
   built.forEach(m=>batch.set(doc(matchesRef,m.id),m));
   batch.set(eventRef,{status:'started',startedAt:event.startedAt||serverTimestamp(),playerCount:roster.length},{merge:true});
   await batch.commit();
+  matches=built; event={...event,status:'started',playerCount:roster.length}; render();
   $('adminMsg').textContent=`${label} ${roster.length}人の名簿を反映しました。`;
   setTimeout(reconcileAndAssign,250);
 }
