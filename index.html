@@ -50,6 +50,8 @@ button.primary{background:linear-gradient(135deg,#5e84ff,#8a6bfa);color:#fff;fon
 .vote-card.ok{border:2px solid #57d7a4!important;background:#10372d!important}
 .vote-card:not(.ok){border:1px solid #536283}
 .modal{max-height:90dvh;overflow-y:auto}
+.picked-stage-image{width:100%;max-width:400px;height:180px;object-fit:cover;border-radius:14px;border:2px solid #96b6ff;display:block;margin:4px auto;}
+.final-result{text-align:center;padding:34px 18px!important}.final-winner{font-size:clamp(25px,7vw,45px);font-weight:900;color:#ffdd79;margin:24px 0}.final-players{font-size:18px}.final-score{font-size:clamp(64px,16vw,110px);font-weight:900;letter-spacing:3px;margin:18px 0;color:#fff}.bracket-board{position:relative}.bracket-connectors{position:absolute;left:14px;top:4px;pointer-events:none;overflow:visible;z-index:0}.bracket-connectors path{fill:none;stroke:#7588b9;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.bracket-stage{z-index:1}
 </style>
 </head>
 <body>
@@ -333,13 +335,20 @@ function mapPhaseText(m){const s=m.mapState;if(!s)return 'マップピック待�
 function mapButtons(m){const s=m.mapState;if(!s)return '';const pool=s.game===1?FIRST_MAPS:LATER_MAPS;return `<div class="map-step">${esc(mapPhaseText(m))}</div><div class="maps">${pool.map(x=>{const banned=!s.available?.includes(x),selected=s.selected===x;return `<button class="mapbtn ${banned?'banned':''} ${selected?'selected':''}" data-map-match="${m.id}" data-map-name="${esc(x)}" ${banned||selected?'disabled':''}><img src="${MAP_IMAGES[x]||''}" alt="${esc(x)}"><span class="mapname">${esc(x)}</span></button>`}).join('')}</div>`}
 function mapModal(m){const s=m.mapState||newMapState(m.game||1);const adminMode=admin();let who='';if(s.turn==='p1')who=playerName(m.p1);else if(s.turn==='p2')who=playerName(m.p2);else if(s.turn==='winner')who=playerName(s.previousWinner);else if(s.turn==='loser')who=playerName(s.previousLoser);
   return `<div class="modal-back"><div class="modal"><div class="title">🎮 ステージ選択：${esc(stageName(m))} / 第${s.game}試合</div><div class="notice">${esc(mapPhaseText(m))}${who?` — ${esc(who)}の操作`:''}</div><div class="ban-row">${s.bannedByP1?.length?`<span class="turn">${s.game===1?'先行拒否':'前試合の勝者拒否'}：${esc(s.bannedByP1.join(' / '))}</span>`:''}${s.bannedByP2?.length?`<span class="turn">後攻拒否：${esc(s.bannedByP2.join(' / '))}</span>`:''}</div>${mapButtons(m)}<div class="row" style="margin-top:14px"><button id="closeMapBtn">閉じる</button></div><div class="small muted" style="margin-top:10px">第1試合：先行1拒否 → 後攻2拒否 → 先行が残り2つから選択。第2試合以降：前試合の勝者2拒否 → 敗者1選択。</div></div></div>`}
-let openMapUnsub=null;
+let openMapUnsub=null;let finalResultTimer=null;
+function showFinalResult(m){
+ stopOpenMapLive();if(finalResultTimer)clearTimeout(finalResultTimer);
+ const score=`${Number(m.s1||0)} - ${Number(m.s2||0)}`;
+ $('modalRoot').innerHTML=`<div class="modal-back"><div class="modal final-result"><div class="title">🏆 対戦終了</div><div class="final-winner">${esc(playerName(m.winner,m.winnerName||'勝者'))} WIN!</div><div class="final-players">${esc(playerName(m.p1,m.p1Name))} vs ${esc(playerName(m.p2,m.p2Name))}</div><div class="final-score">${score}</div><div class="muted">5秒後に画面を閉じます</div></div></div>`;
+ finalResultTimer=setTimeout(()=>{if($('modalRoot').querySelector('.final-result'))$('modalRoot').innerHTML='';finalResultTimer=null;},5000);
+}
+
 function stopOpenMapLive(){if(openMapUnsub){openMapUnsub();openMapUnsub=null}}
 function flowModal(m){
  const selected=m.mapState?.selected;
  if(!selected)return mapModal(m);
  const v=m.votes||{};
- const notice=`<div class="picked-banner"><span>🗺️ 第${m.game||1}ゲームの対戦ステージ</span><strong>${esc(selected)}</strong><span>マップ選択完了 ✓　結果を投票してください</span></div>`;
+ const notice=`<div class="picked-banner"><span>🗺️ 第${m.game||1}ゲームの対戦ステージ</span><img class="picked-stage-image" src="${MAP_IMAGES[selected]||''}" alt="${esc(selected)}"><strong>${esc(selected)}</strong><span>マップ選択完了 ✓　結果を投票してください</span></div>`;
  return voteModal(m).replace('<div class="notice">',notice+'<div class="notice">');
 }
 function paintMapModal(m){$('modalRoot').innerHTML=flowModal(m);const root=$('modalRoot').querySelector('.modal-back');if(root)root.dataset.liveMapMatch=m.id}
@@ -353,11 +362,11 @@ function openMap(m){
     const i=matches.findIndex(x=>x.id===live.id);if(i>=0)matches[i]=live;else matches.push(live);
     const root=$('modalRoot').querySelector('.modal-back[data-live-map-match]');
     if(!root||root.dataset.liveMapMatch!==live.id)return;
-    if(live.status!=='playing'){stopOpenMapLive();$('modalRoot').innerHTML='<div class="modal-back"><div class="modal"><h2>🏆 試合終了！</h2><p>結果が確定しました。</p><button id="closeMapBtn">閉じる</button></div></div>';return}
+    if(live.status==='done'){showFinalResult(live);return} if(live.status!=='playing'){stopOpenMapLive();$('modalRoot').innerHTML='';return}
     paintMapModal(live);
   },err=>console.error('map live listener',err));
 }
-function refreshOpenMapModal(){const root=$('modalRoot').querySelector('.modal-back[data-live-map-match]');if(!root)return;const m=matches.find(x=>x.id===root.dataset.liveMapMatch);if(!m||m.status!=='playing'){$('modalRoot').innerHTML='';return}openMap(m)}
+function refreshOpenMapModal(){const root=$('modalRoot').querySelector('.modal-back[data-live-map-match]');if(!root)return;const m=matches.find(x=>x.id===root.dataset.liveMapMatch);if(m?.status==='done'){showFinalResult(m);return}if(!m||m.status!=='playing'){$('modalRoot').innerHTML='';return}openMap(m)}
 function canMapAct(m){return !!currentUser&&!!actingPlayerId(m)}
 async function mapAction(m,map){if(!canMapAct(m)||!m.mapState)return;const s=structuredClone(m.mapState);if(!s.available.includes(map)||s.selected)return;
   if(s.phase==='p1ban'&&actingPlayerId(m)===m.p1){s.available=s.available.filter(x=>x!==map);s.bannedByP1.push(map);s.phase='p2ban';s.turn='p2'}
@@ -455,7 +464,25 @@ function renderBracket(){
       else title=`R${r}`;
       stages.push({html:`<div class="bracket-stage"><h4>${title}</h4><div class="bracket-stage-body" style="height:${boardH}px">${cards}</div></div>`,boardH,round:r,count:ms.length});
     }
-    return {stages,maxRound,boardH};
+    const stageWidth=190,stageGap=26,head=30;
+    const lines=[];
+    for(let r=2;r<=maxRound;r++){
+      const curr=list.filter(m=>m.round===r),prev=list.filter(m=>m.round===r-1);
+      for(let j=0;j<curr.length;j++){
+        const dest=curr[j],cy=(j+.5)*boardH/curr.length+head;
+        for(const srcRef of [dest.source1,dest.source2]){
+          if(!srcRef||srcRef.startsWith('loser:'))continue;
+          const k=prev.findIndex(m=>m.id===srcRef);if(k<0)continue;
+          const sy=(k+.5)*boardH/prev.length+head;
+          const x1=(r-2)*(stageWidth+stageGap)+stageWidth;
+          const x2=(r-1)*(stageWidth+stageGap);
+          const mid=(x1+x2)/2;
+          lines.push(`<path d="M${x1} ${sy} H${mid} V${cy} H${x2}"/>`);
+        }
+      }
+    }
+    const overlay=`<svg class="bracket-connectors" width="${maxRound*(stageWidth+stageGap)}" height="${boardH+head}" viewBox="0 0 ${maxRound*(stageWidth+stageGap)} ${boardH+head}" aria-hidden="true">${lines.join('')}</svg>`;
+    return {stages,maxRound,boardH,overlay};
   };
 
   const W=layoutSection(wb,'WB');
@@ -468,11 +495,11 @@ function renderBracket(){
   $('bracket').innerHTML=`
     <div class="bracket-section">
       <div class="bracket-section-title">🏆 勝者側トーナメント</div>
-      <div class="bracket-scroll"><div class="bracket-board">${W.stages.map(x=>x.html).join('')}${gfHtml}</div></div>
+      <div class="bracket-scroll"><div class="bracket-board">${W.overlay}${W.stages.map(x=>x.html).join('')}${gfHtml}</div></div>
     </div>
     <div class="bracket-section">
       <div class="bracket-section-title">💀 敗者側トーナメント</div>
-      <div class="bracket-scroll"><div class="bracket-board">${L.stages.map(x=>x.html).join('')}</div></div>
+      <div class="bracket-scroll"><div class="bracket-board">${L.overlay}${L.stages.map(x=>x.html).join('')}</div></div>
     </div>`;
 }
 function render(){
