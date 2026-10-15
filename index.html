@@ -38,6 +38,18 @@
  .bracket-player{font-size:12px!important;line-height:13px!important}
  .bracket-status{margin-top:2px!important}
 }
+
+/* 大会向けの統一ビジュアルと、選択結果の視認性 */
+:root{--accent:#83a7ff}
+body{background:radial-gradient(ellipse at 50% -200px,#1b3268 0%,#0a1021 56%,#080d19 100%)}
+.panel,.card{border-color:#34466d}
+button.primary{background:linear-gradient(135deg,#5e84ff,#8a6bfa);color:#fff;font-weight:800}
+.match.playing{box-shadow:0 0 0 1px #6289ff55,0 8px 28px #0005}
+.picked-banner{display:flex;flex-direction:column;gap:9px;text-align:center;padding:18px 12px;margin:12px 0;border:2px solid #78a1ff;border-radius:15px;background:linear-gradient(135deg,#182e5b,#1c2145);color:#dbe6ff;font-weight:700}
+.picked-banner strong{font-size:clamp(24px,6vw,36px);color:#fff;text-shadow:0 0 14px #87aaff88}
+.vote-card.ok{border:2px solid #57d7a4!important;background:#10372d!important}
+.vote-card:not(.ok){border:1px solid #536283}
+.modal{max-height:90dvh;overflow-y:auto}
 </style>
 </head>
 <body>
@@ -139,7 +151,7 @@ function makeBracket(ps){
   for(let k=1;k<=sizes.length;k++)for(let i=0;i<sizes[k-1];i++){
     const m=out.find(x=>x.id===`lb${k}-${i+1}`);
     if(k===1){m.source1=`loser:wb1-${i*2+1}`;m.source2=`loser:wb1-${i*2+2}`}
-    else if(k%2===0){m.source1=`lb${k-1}-${i+1}`;const wr=k/2+1;m.source2=wr<=R?`loser:wb${wr}-${i+1}`:null}
+    else if(k%2===0){m.source1=`lb${k-1}-${i+1}`;const wr=k/2+1;m.source2=wr<=R?`loser:wb${wr}-${sizes[k-1]-i}`:null}
     else {m.source1=`lb${k-1}-${i*2+1}`;m.source2=`lb${k-1}-${i*2+2}`}
   }
   const gf=base('GF-1');gf.bracket='GF';gf.round=R;gf.index=1;gf.source1=`wb${R}-1`;gf.source2=sizes.length?`lb${sizes.length}-1`:null;out.push(gf);
@@ -302,10 +314,17 @@ function currentMap(m){return m.mapState?.selected||null}
 function mapPhaseText(m){const s=m.mapState;if(!s)return 'マップピック待ち';if(s.selected)return `第${s.game}試合：${s.selected}`;if(s.phase==='p1ban')return '先行：1つ拒否';if(s.phase==='p2ban')return '後攻：2つ拒否';if(s.phase==='p1pick')return '先行：残り2つから選択';if(s.phase==='winnerBan')return '前試合の勝者：2つ拒否';if(s.phase==='loserPick')return '前試合の敗者：1つ選択';return 'マップピック'}
 function mapButtons(m){const s=m.mapState;if(!s)return '';const pool=s.game===1?FIRST_MAPS:LATER_MAPS;return `<div class="map-step">${esc(mapPhaseText(m))}</div><div class="maps">${pool.map(x=>{const banned=!s.available?.includes(x),selected=s.selected===x;return `<button class="mapbtn ${banned?'banned':''} ${selected?'selected':''}" data-map-match="${m.id}" data-map-name="${esc(x)}" ${banned||selected?'disabled':''}><img src="${MAP_IMAGES[x]||''}" alt="${esc(x)}"><span class="mapname">${esc(x)}</span></button>`}).join('')}</div>`}
 function mapModal(m){const s=m.mapState||newMapState(m.game||1);const adminMode=admin();let who='';if(s.turn==='p1')who=playerName(m.p1);else if(s.turn==='p2')who=playerName(m.p2);else if(s.turn==='winner')who=playerName(s.previousWinner);else if(s.turn==='loser')who=playerName(s.previousLoser);
-  return `<div class="modal-back"><div class="modal"><div class="title">マップピック：${esc(stageName(m))} / 第${s.game}試合</div><div class="notice">${esc(mapPhaseText(m))}${who?` — ${esc(who)}の操作`:''}</div><div class="ban-row">${s.bannedByP1?.length?`<span class="turn">${s.game===1?'先行拒否':'前試合の勝者拒否'}：${esc(s.bannedByP1.join(' / '))}</span>`:''}${s.bannedByP2?.length?`<span class="turn">後攻拒否：${esc(s.bannedByP2.join(' / '))}</span>`:''}</div>${mapButtons(m)}<div class="row" style="margin-top:14px"><button id="closeMapBtn">閉じる</button></div><div class="small muted" style="margin-top:10px">第1試合：先行1拒否 → 後攻2拒否 → 先行が残り2つから選択。第2試合以降：前試合の勝者2拒否 → 敗者1選択。</div></div></div>`}
+  return `<div class="modal-back"><div class="modal"><div class="title">🎮 ステージ選択：${esc(stageName(m))} / 第${s.game}試合</div><div class="notice">${esc(mapPhaseText(m))}${who?` — ${esc(who)}の操作`:''}</div><div class="ban-row">${s.bannedByP1?.length?`<span class="turn">${s.game===1?'先行拒否':'前試合の勝者拒否'}：${esc(s.bannedByP1.join(' / '))}</span>`:''}${s.bannedByP2?.length?`<span class="turn">後攻拒否：${esc(s.bannedByP2.join(' / '))}</span>`:''}</div>${mapButtons(m)}<div class="row" style="margin-top:14px"><button id="closeMapBtn">閉じる</button></div><div class="small muted" style="margin-top:10px">第1試合：先行1拒否 → 後攻2拒否 → 先行が残り2つから選択。第2試合以降：前試合の勝者2拒否 → 敗者1選択。</div></div></div>`}
 let openMapUnsub=null;
 function stopOpenMapLive(){if(openMapUnsub){openMapUnsub();openMapUnsub=null}}
-function paintMapModal(m){$('modalRoot').innerHTML=mapModal(m);const root=$('modalRoot').querySelector('.modal-back');if(root)root.dataset.liveMapMatch=m.id}
+function flowModal(m){
+ const selected=m.mapState?.selected;
+ if(!selected)return mapModal(m);
+ const v=m.votes||{};
+ const notice=`<div class="picked-banner"><span>🗺️ 第${m.game||1}ゲームの対戦ステージ</span><strong>${esc(selected)}</strong><span>マップ選択完了 ✓　結果を投票してください</span></div>`;
+ return voteModal(m).replace('<div class="notice">',notice+'<div class="notice">');
+}
+function paintMapModal(m){$('modalRoot').innerHTML=flowModal(m);const root=$('modalRoot').querySelector('.modal-back');if(root)root.dataset.liveMapMatch=m.id}
 function openMap(m){
   stopOpenMapLive();
   paintMapModal(m);
@@ -316,7 +335,7 @@ function openMap(m){
     const i=matches.findIndex(x=>x.id===live.id);if(i>=0)matches[i]=live;else matches.push(live);
     const root=$('modalRoot').querySelector('.modal-back[data-live-map-match]');
     if(!root||root.dataset.liveMapMatch!==live.id)return;
-    if(live.status!=='playing'){stopOpenMapLive();$('modalRoot').innerHTML='';return}
+    if(live.status!=='playing'){stopOpenMapLive();$('modalRoot').innerHTML='<div class="modal-back"><div class="modal"><h2>🏆 試合終了！</h2><p>結果が確定しました。</p><button id="closeMapBtn">閉じる</button></div></div>';return}
     paintMapModal(live);
   },err=>console.error('map live listener',err));
 }
@@ -370,8 +389,8 @@ async function submitVote(m,winnerId,actorId=null){
   });
   if(finished)setTimeout(reconcileAndAssign,200);render();
 }
-function voteModal(m){const v=m.votes||{};const ids=eligibleActingPlayers(m);const saved=actingPlayerId(m);const actor=saved&&ids.includes(saved)?saved:(ids.length===1?ids[0]:'');const opts=ids.map(id=>`<option value="${esc(id)}" ${id===actor?'selected':''}>${esc(playerName(id))}</option>`).join('');return `<div class="modal-back"><div class="modal"><div class="title">第${m.game||1}試合の結果を投票</div><div class="notice">${esc(playerName(m.p1))} vs ${esc(playerName(m.p2))} / ${boFor(m)}　現在 ${m.s1}-${m.s2}</div><div class="field" style="margin-top:12px"><label>投票する参加者</label><select id="voteActorSelect">${opts}</select></div><p class="small muted">上で参加者を選んでから、このゲームで勝った選手を押してください。<br>同じスマホでも「あ」→「い」と毎回切り替えて投票できます。</p><div class="result-buttons">${[m.p1,m.p2].map(w=>`<button data-vote-match="${m.id}" data-winner="${w}">${esc(playerName(w))} が第${m.game||1}試合に勝利</button>`).join('')}</div><div class="vote-grid" style="margin-top:12px"><div class="vote-card ${v.p1?'ok':''}"><b>${esc(playerName(m.p1))}</b><div class="small">${v.p1?`投票済み：${esc(playerName(v.p1.winnerId))}`:'未投票'}</div></div><div class="vote-card ${v.p2?'ok':''}"><b>${esc(playerName(m.p2))}</b><div class="small">${v.p2?`投票済み：${esc(playerName(v.p2.winnerId))}`:'未投票'}</div></div></div><div class="row" style="margin-top:14px"><button id="closeVoteBtn">閉じる</button></div></div></div>`}
-function openVote(m){if(!m.mapState?.selected){alert(`第${m.game||1}試合のマップ選択が完了するまで結果投票はできません。`);return}$('modalRoot').innerHTML=voteModal(m)}
+function voteModal(m){const v=m.votes||{};const ids=eligibleActingPlayers(m);const saved=actingPlayerId(m);const actor=saved&&ids.includes(saved)?saved:(ids.length===1?ids[0]:'');const opts=ids.map(id=>`<option value="${esc(id)}" ${id===actor?'selected':''}>${esc(playerName(id))}</option>`).join('');return `<div class="modal-back"><div class="modal"><div class="title">🏆 第${m.game||1}ゲーム・勝敗投票</div><div class="notice">${esc(playerName(m.p1))} vs ${esc(playerName(m.p2))} / ${boFor(m)}　現在 ${m.s1}-${m.s2}</div><div class="field" style="margin-top:12px"><label>投票する参加者</label><select id="voteActorSelect">${opts}</select></div><p class="small muted">上で参加者を選んでから、このゲームで勝った選手を押してください。<br>同じスマホでも「あ」→「い」と毎回切り替えて投票できます。</p><div class="result-buttons">${[m.p1,m.p2].map(w=>`<button data-vote-match="${m.id}" data-winner="${w}">${esc(playerName(w))} が第${m.game||1}試合に勝利</button>`).join('')}</div><div class="vote-grid" style="margin-top:12px"><div class="vote-card ${v.p1?'ok':''}"><b>${esc(playerName(m.p1))}</b><div class="small">${v.p1?`✓ 投票完了：${esc(playerName(v.p1.winnerId))}`:'⏳ 投票待ち'}</div></div><div class="vote-card ${v.p2?'ok':''}"><b>${esc(playerName(m.p2))}</b><div class="small">${v.p2?`✓ 投票完了：${esc(playerName(v.p2.winnerId))}`:'⏳ 投票待ち'}</div></div></div><div class="row" style="margin-top:14px"><button id="closeVoteBtn">閉じる</button></div></div></div>`}
+function openVote(m){openMap(m)}
 
 function matchHTML(m,adminMode){
   const state=m.status==='playing'?`台${m.table}・プレイ中`:m.status==='waiting'?'待機中':m.status==='done'?'終了':'次待ち';
@@ -567,7 +586,7 @@ async function rebuildTournament(){
 }
 async function deleteAllMatches(){const snap=await getDocs(matchesRef);const b=writeBatch(db);snap.forEach(d=>b.delete(d.ref));await b.commit()}
 async function deleteAllPlayers(){const snap=await getDocs(playersRef);if(snap.empty)return;let batch=writeBatch(db),count=0;for(const d of snap.docs){batch.delete(d.ref);count++;if(count===450){await batch.commit();batch=writeBatch(db);count=0}}if(count)await batch.commit()}
-document.addEventListener('click',async e=>{const close=e.target.closest('#closeMapBtn,#closeVoteBtn');if(close){stopOpenMapLive();$('modalRoot').innerHTML='';return}const saveActor=e.target.closest('#saveActingPlayer');if(saveActor){const id=$('actingPlayerSelect').value;const mid=saveActor.dataset.actingMatch;const next=saveActor.dataset.nextAction;sessionStorage.setItem('actingPlayerId',id);$('modalRoot').innerHTML='';const mm=matches.find(x=>x.id===mid);if(mm){if(next==='map')openMap(mm);else if(next==='vote')openVote(mm)}return}const closeActor=e.target.closest('#closeActingPlayer');if(closeActor){stopOpenMapLive();$('modalRoot').innerHTML='';return}const mb=e.target.closest('[data-open-map]');if(mb){const m=matches.find(x=>x.id===mb.dataset.openMap);if(m){const ids=eligibleActingPlayers(m);if(ids.length>1)chooseActingPlayer(m,'map');else if(ids.length===1){sessionStorage.setItem('actingPlayerId',ids[0]);openMap(m)}else alert('この試合を操作できる参加者として認証されていません。')}return}const mapb=e.target.closest('[data-map-match]');if(mapb){const m=matches.find(x=>x.id===mapb.dataset.mapMatch);if(m)try{await mapAction(m,mapb.dataset.mapName)}catch(err){alert('マップ操作に失敗しました: '+err.message)}return}const vb=e.target.closest('[data-open-vote]');if(vb){const m=matches.find(x=>x.id===vb.dataset.openVote);if(m){const ids=eligibleActingPlayers(m);if(ids.length>1)chooseActingPlayer(m,'vote');else if(ids.length===1){sessionStorage.setItem('actingPlayerId',ids[0]);openVote(m)}else alert('この試合を操作できる参加者として認証されていません。')}return}const vote=e.target.closest('[data-vote-match]');if(vote){const m=matches.find(x=>x.id===vote.dataset.voteMatch);if(m)try{const actor=$('voteActorSelect')?.value||null;await submitVote(m,vote.dataset.winner,actor);if($('modalRoot').innerHTML&&m.status==='playing')openVote({...m,...(matches.find(x=>x.id===m.id)||{})});}catch(err){alert('投票に失敗しました: '+err.message)}return}});
+document.addEventListener('click',async e=>{const close=e.target.closest('#closeMapBtn,#closeVoteBtn');if(close){stopOpenMapLive();$('modalRoot').innerHTML='';return}const saveActor=e.target.closest('#saveActingPlayer');if(saveActor){const id=$('actingPlayerSelect').value;const mid=saveActor.dataset.actingMatch;const next=saveActor.dataset.nextAction;sessionStorage.setItem('actingPlayerId',id);$('modalRoot').innerHTML='';const mm=matches.find(x=>x.id===mid);if(mm){if(next==='map')openMap(mm);else if(next==='vote')openVote(mm)}return}const closeActor=e.target.closest('#closeActingPlayer');if(closeActor){stopOpenMapLive();$('modalRoot').innerHTML='';return}const mb=e.target.closest('[data-open-map]');if(mb){const m=matches.find(x=>x.id===mb.dataset.openMap);if(m){const ids=eligibleActingPlayers(m);if(ids.length>1)chooseActingPlayer(m,'map');else if(ids.length===1){sessionStorage.setItem('actingPlayerId',ids[0]);openMap(m)}else alert('この試合を操作できる参加者として認証されていません。')}return}const mapb=e.target.closest('[data-map-match]');if(mapb){const m=matches.find(x=>x.id===mapb.dataset.mapMatch);if(m)try{await mapAction(m,mapb.dataset.mapName)}catch(err){alert('マップ操作に失敗しました: '+err.message)}return}const vb=e.target.closest('[data-open-vote]');if(vb){const m=matches.find(x=>x.id===vb.dataset.openVote);if(m){const ids=eligibleActingPlayers(m);if(ids.length>1)chooseActingPlayer(m,'vote');else if(ids.length===1){sessionStorage.setItem('actingPlayerId',ids[0]);openVote(m)}else alert('この試合を操作できる参加者として認証されていません。')}return}const vote=e.target.closest('[data-vote-match]');if(vote){const m=matches.find(x=>x.id===vote.dataset.voteMatch);if(m)try{const actor=$('voteActorSelect')?.value||null;await submitVote(m,vote.dataset.winner,actor);}catch(err){alert('投票に失敗しました: '+err.message)}return}});
 subscribe();bootstrapAnon();
 // 通信順や一時的な古いBYEが残っても、進行中は定期的に自己修復する。
 setInterval(()=>{if(event.status==='started'&&!document.hidden)reconcileAndAssign();},2000);
