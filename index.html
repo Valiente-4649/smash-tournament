@@ -57,7 +57,7 @@ button.primary{background:linear-gradient(135deg,#5e84ff,#8a6bfa);color:#fff;fon
 <body>
 <div class="wrap">
   <div class="top"><div><div class="brand">🎮 Smash Tournament</div><div id="eventSub" class="muted">リアルタイム大会管理</div></div><div class="row"><span id="authPill" class="pill">接続中…</span><span id="statusPill" class="pill">大会未開始</span></div></div>
-  <div class="nav"><button id="tabView" class="active">大会を見る</button><button id="tabMaps">マップピック</button><button id="tabRegister">参加登録</button><button id="tabAdmin">管理者</button></div>
+  <div class="nav"><button id="tabView" class="active">大会を見る</button><button id="tabMaps">マップピック</button><button id="tabRegister">参加登録</button><button id="tabPractice">練習試合</button><button id="tabAdmin">管理者</button></div>
 
   <section id="viewPage"><div class="grid">
     <div class="card half"><div class="title">大会状況</div><div id="overview" class="muted">読み込み中…</div></div>
@@ -74,6 +74,7 @@ button.primary{background:linear-gradient(135deg,#5e84ff,#8a6bfa);color:#fff;fon
     <div class="card half"><div class="title">登録済み参加者</div><div id="regPlayers" class="players"></div></div>
   </div></section>
 
+  <section id="practicePage" class="hidden"><div class="grid"><div class="card"><div class="title">⚔️ 練習試合</div><p class="muted">本戦と独立して何試合でも同時進行できます。参加コードを相手に共有してください。</p><div class="row"><button id="practiceCreate" class="primary">練習試合を開始する</button><input id="practiceCode" placeholder="参加コード（8文字）" maxlength="8" style="max-width:180px"><button id="practiceJoin">試合に参加</button></div><div id="practiceMessage" class="muted" style="margin-top:10px"></div></div><div class="card"><div class="title">進行中の練習試合</div><div id="practiceActive" class="muted">試合を作成するか、参加コードを入力してください。</div></div><div class="card"><div class="title">練習試合の記録（5日間）</div><div id="practiceHistory" class="matches"></div></div></div></section>
   <section id="adminPage" class="hidden"><div class="grid">
     <div id="loginCard" class="card half"><div class="title">管理者ログイン</div><div class="field"><label>メールアドレス</label><input id="adminEmail" type="email" autocomplete="username"></div><div class="field"><label>パスワード</label><input id="adminPass" type="password" autocomplete="current-password"></div><button id="loginBtn" class="primary">ログイン</button><div id="loginMsg" class="muted" style="margin-top:8px"></div></div>
     <div id="adminCard" class="card half hidden admin-panel"><div class="title">管理者パネル</div><div id="adminUser" class="notice success"></div><div class="field"><label>大会名</label><input id="eventNameInput" maxlength="60" value="Smash Tournament"></div><div class="field"><label>Switch / 対戦台数</label><input id="switchesInput" type="number" min="1" max="32" value="2"></div><div class="row"><button id="saveSettingsBtn">設定保存</button><button id="repairBtn" class="good">🔧 進行を修復</button><button id="startBtn" class="primary">大会開始</button><button id="rebuildBtn">大会表を再生成</button><button id="resetBtn" class="danger">大会リセット</button><button id="logoutBtn">ログアウト</button></div><div id="adminMsg" class="muted" style="margin-top:8px"></div></div>
@@ -102,8 +103,8 @@ let currentUser=null,event={status:'registration',name:'Smash Tournament',switch
 let authInitialized=false,authError='',resolveAuthReady;const authReady=new Promise(r=>resolveAuthReady=r);
 const $=id=>document.getElementById(id);const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 function admin(){return currentUser?.uid===ADMIN_UID}
-function setPage(id){['viewPage','mapsPage','registerPage','adminPage'].forEach(x=>$(x).classList.toggle('hidden',x!==id));['tabView','tabMaps','tabRegister','tabAdmin'].forEach(x=>$(x).classList.toggle('active',x.replace('tab','').toLowerCase()===id.replace('Page','').toLowerCase()))}
-$('tabView').onclick=()=>setPage('viewPage');$('tabMaps').onclick=()=>setPage('mapsPage');$('tabRegister').onclick=()=>setPage('registerPage');$('tabAdmin').onclick=()=>setPage('adminPage');
+function setPage(id){['viewPage','mapsPage','registerPage','practicePage','adminPage'].forEach(x=>$(x).classList.toggle('hidden',x!==id));['tabView','tabMaps','tabRegister','tabPractice','tabAdmin'].forEach(x=>$(x).classList.toggle('active',x.replace('tab','').toLowerCase()===id.replace('Page','').toLowerCase()))}
+$('tabView').onclick=()=>setPage('viewPage');$('tabMaps').onclick=()=>setPage('mapsPage');$('tabRegister').onclick=()=>setPage('registerPage');$('tabAdmin').onclick=()=>setPage('adminPage');$('tabPractice').onclick=()=>setPage('practicePage');
 function rounds(n){return Math.ceil(Math.log2(Math.max(2,n)))}
 function labelRound(r,total){if(r===total)return '決勝';if(r===total-1)return '準決勝';if(r===total-2)return '準々決勝';return `WB R${r}`}
 function boFor(m){if(m.bracket==='GF')return 'BO5';return m.round>=m.wbTotal-1?'BO5':'BO3'}
@@ -637,5 +638,43 @@ subscribe();bootstrapAnon();
 // 通信順や一時的な古いBYEが残っても、進行中は定期的に自己修復する。
 setInterval(()=>{if(event.status==='started'&&!document.hidden)reconcileAndAssign();},2000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&event.status==='started')setTimeout(reconcileAndAssign,100)});
+
+// Independent practice matches: all state lives under practiceMatches, never in tournament matches.
+const practiceRef=collection(db,'practiceMatches');
+let practiceId=sessionStorage.getItem('practiceMatchId')||'',practiceData=null,practiceUnsub=null;
+const practiceMsg=t=>{$('practiceMessage').textContent=t};
+const practiceCode=()=>Math.random().toString(36).slice(2,10).toUpperCase();
+const practiceEsc=x=>esc(String(x??''));
+function practiceWatch(id){if(practiceUnsub)practiceUnsub();practiceId=id;sessionStorage.setItem('practiceMatchId',id);practiceUnsub=onSnapshot(doc(practiceRef,id),snap=>{practiceData=snap.exists()?{id:snap.id,...snap.data()}:null;practiceRender()});}
+function practiceActor(){const uid=currentUser?.uid;const d=practiceData;if(!d||!uid)return 0;const override=sessionStorage.getItem('practiceActor:'+d.id);if(d.p1Uid===uid&&d.p2Uid===uid)return override==='2'?2:1;if(d.p1Uid===uid)return 1;if(d.p2Uid===uid)return 2;return 0}
+function practiceNames(d){return [d.p1Name||'未参加',d.p2Name||'未参加']}
+function practiceMapState(d){const game=d.game||1;return {phase:game===1?'p1ban':'winnerBan',available:[...(game===1?FIRST_MAPS:LATER_MAPS)],banned:[],selected:null,game}}
+function practiceMapTurn(d){const phase=d.map?.phase;return phase==='p1ban'||phase==='p1choose'?1:phase==='p2ban'?2:phase==='winnerBan'?(d.lastWinner||1):phase==='loserChoose'?(d.lastWinner===1?2:1):0}
+function practiceRender(){const d=practiceData;if(!d){$('practiceActive').innerHTML='<span class="muted">参加中の試合はありません。</span>';return}const names=practiceNames(d),actor=practiceActor(),phase=d.phase||'setup',votes=d.ruleVotes||{},v=d.votes||{},map=d.map||{},code=d.id;
+let body=`<div class="notice">参加コード：<b>${practiceEsc(code)}</b>　${practiceEsc(names[0])} vs ${practiceEsc(names[1])}　${practiceEsc(phase)}</div>`;
+if(phase==='setup')body+=`<div class="field"><label>あなたの名前</label><input id="practiceName" maxlength="20" placeholder="プレイヤー名"></div><button data-practice="name">名前を登録</button><p class="muted">両者の名前が登録されたらBO形式を投票します。</p>`;
+if(phase==='rules')body+=`<p>BO形式を両者が選択： ${votes['1']||'未投票'} / ${votes['2']||'未投票'}</p><div class="row"><button data-practice="rule" data-val="3">BO3</button><button data-practice="rule" data-val="5">BO5</button></div>`;
+if(phase==='playing'){
+body+=`<h3>第${d.game||1}ゲーム / BO${d.bo}　${d.s1||0} - ${d.s2||0}</h3>`;
+if(d.p1Uid===d.p2Uid&&actor)body+=`<label>このスマホで操作する選手</label><select id="practiceActor"><option value="1" ${actor===1?'selected':''}>${practiceEsc(names[0])}</option><option value="2" ${actor===2?'selected':''}>${practiceEsc(names[1])}</option></select>`;
+if(!map.selected){const turn=practiceMapTurn(d);body+=`<h3>🗺️ マップピック</h3><p>${practiceEsc(map.phase)} / 操作：${practiceEsc(names[turn-1]||'待機')}</p><div class="row">${(map.available||[]).map(m=>`<button data-practice="map" data-val="${practiceEsc(m)}" ${actor!==turn?'disabled':''}>${practiceEsc(m)}</button>`).join('')}</div>`}
+else{body+=`<h3>🗺️ 決定ステージ：${practiceEsc(map.selected)}</h3>${MAP_IMAGES[map.selected]?`<img src="${MAP_IMAGES[map.selected]}" alt="${practiceEsc(map.selected)}" style="width:100%;max-width:360px;border-radius:12px">`:''}<p>第${d.game}ゲームの勝者に投票</p><div class="row"><button data-practice="vote" data-val="1" ${!actor?'disabled':''}>${practiceEsc(names[0])}の勝ち</button><button data-practice="vote" data-val="2" ${!actor?'disabled':''}>${practiceEsc(names[1])}の勝ち</button></div><p>投票状況：${practiceEsc(names[0])} ${v['1']?'✅':'⏳'} / ${practiceEsc(names[1])} ${v['2']?'✅':'⏳'}</p>`}
+}
+if(phase==='done')body+=`<h2>🏆 ${practiceEsc(names[(d.winner||1)-1])} 勝利！</h2><h3>${d.s1} - ${d.s2}</h3><p>${d.keepRecord?'この結果は5日間記録されます。':'この結果は履歴に残しません。'}</p>`;
+$('practiceActive').innerHTML=body;
+const sel=$('practiceActor');if(sel)sel.onchange=()=>{sessionStorage.setItem('practiceActor:'+d.id,sel.value);practiceRender()};}
+async function practiceMutate(transform){if(!practiceId)return;try{await runTransaction(db,async tx=>{const ref=doc(practiceRef,practiceId),snap=await tx.get(ref);if(!snap.exists())throw Error('試合が見つかりません');const old=snap.data();const patch=transform(old);if(patch)tx.update(ref,patch)});}catch(e){practiceMsg('操作できませんでした：'+e.message)}}
+$('practiceCreate').onclick=async()=>{if(!currentUser)return practiceMsg('認証中です。少し待ってください。');const name=prompt('作成者のプレイヤー名を入力してください');if(!name?.trim())return;const keep=confirm('この練習試合の結果を5日間記録しますか？\nOK：記録する / キャンセル：記録しない');const id=practiceCode();try{await setDoc(doc(practiceRef,id),{p1Name:name.trim().slice(0,20),p1Uid:currentUser.uid,p2Name:'',p2Uid:'',keepRecord:keep,phase:'setup',createdAt:Date.now(),expiresAt:Date.now()+5*86400000,ruleVotes:{},votes:{},game:1,s1:0,s2:0});practiceWatch(id);practiceMsg('参加コード '+id+' を相手に共有してください。')}catch(e){practiceMsg('作成失敗：'+e.message)}};
+$('practiceJoin').onclick=()=>{const id=$('practiceCode').value.trim().toUpperCase();if(!/^[A-Z0-9]{8}$/.test(id))return practiceMsg('8文字の参加コードを入力してください。');practiceWatch(id)};
+$('practiceActive').addEventListener('click',async e=>{const btn=e.target.closest('[data-practice]');if(!btn||!practiceData)return;const action=btn.dataset.practice,val=btn.dataset.val,actor=practiceActor();
+if(action==='name'){const name=$('practiceName')?.value.trim();if(!name)return practiceMsg('名前を入力してください');await practiceMutate(d=>{if(d.p2Uid&&d.p2Uid!==currentUser.uid)return null;if(d.p2Name)return null;return {p2Name:name.slice(0,20),p2Uid:currentUser.uid,phase:'rules'}});return}
+if(!actor)return practiceMsg('この試合の参加者ではありません');
+if(action==='rule')return practiceMutate(d=>{if(d.phase!=='rules')return null;const rv={...d.ruleVotes,[actor]:val};const same=rv['1']&&rv['1']===rv['2'];return {ruleVotes:rv,...(same?{phase:'playing',bo:Number(val),map:practiceMapState(d)}:{})}});
+if(action==='map')return practiceMutate(d=>{if(d.phase!=='playing'||d.map?.selected||practiceMapTurn(d)!==actor||!d.map.available.includes(val))return null;const m={...d.map,available:[...d.map.available],banned:[...(d.map.banned||[])]};if(m.phase==='p1ban'){m.available=m.available.filter(x=>x!==val);m.banned.push(val);m.phase='p2ban';m.p2Bans=0}else if(m.phase==='p2ban'){m.available=m.available.filter(x=>x!==val);m.banned.push(val);m.p2Bans=(m.p2Bans||0)+1;if(m.p2Bans===2)m.phase='p1choose'}else if(m.phase==='winnerBan'){m.available=m.available.filter(x=>x!==val);m.banned.push(val);m.winnerBans=(m.winnerBans||0)+1;if(m.winnerBans===2)m.phase='loserChoose'}else if(m.phase==='p1choose'||m.phase==='loserChoose'){m.selected=val;m.phase='selected'}return {map:m}});
+if(action==='vote')return practiceMutate(d=>{if(d.phase!=='playing'||!d.map?.selected)return null;const v={...d.votes,[actor]:Number(val)};if(v['1']&&v['2']&&v['1']===v['2']){const w=v['1'],s1=(d.s1||0)+(w===1?1:0),s2=(d.s2||0)+(w===2?1:0),done=Math.max(s1,s2)>=Math.ceil(d.bo/2);return {votes:{},s1,s2,lastWinner:w,phase:done?'done':'playing',winner:done?w:null,finishedAt:done?Date.now():null,...(done?{}:{game:(d.game||1)+1,map:practiceMapState({game:(d.game||1)+1})})}}return {votes:v}});
+});
+// Records are filtered by expiration immediately; actual deletion requires Firestore TTL or scheduled cleanup.
+onSnapshot(practiceRef,snap=>{const now=Date.now();const rows=snap.docs.map(x=>({id:x.id,...x.data()})).filter(d=>d.phase==='done'&&d.keepRecord&&d.expiresAt>now).sort((a,b)=>(b.finishedAt||0)-(a.finishedAt||0));$('practiceHistory').innerHTML=rows.length?rows.map(d=>`<div class="match"><b>${practiceEsc(d.p1Name)} vs ${practiceEsc(d.p2Name)}</b> / BO${d.bo} / ${d.s1}-${d.s2}<div class="small muted">勝者：${practiceEsc((d.winner===1?d.p1Name:d.p2Name))}　${new Date(d.finishedAt).toLocaleString('ja-JP')}</div></div>`).join(''):'<div class="muted">記録はまだありません。</div>'});
+if(practiceId)practiceWatch(practiceId);
 </script>
 </body></html>
