@@ -90,7 +90,7 @@ button.primary{background:linear-gradient(135deg,#5e84ff,#8a6bfa);color:#fff;fon
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
 import { getAuth, signInAnonymously, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
-import { getFirestore, doc, collection, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, getDocs, query, orderBy, writeBatch, serverTimestamp, runTransaction } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
+import { getFirestore, doc, collection, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, getDocs, query, orderBy, writeBatch, serverTimestamp, runTransaction, getDocFromServer } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 const firebaseConfig={apiKey:'AIzaSyDVOpwr89QumJoa0RH06Vk99lOvUxDee8A',authDomain:'smash-tournament-7d620.firebaseapp.com',databaseURL:'https://smash-tournament-7d620-default-rtdb.firebaseio.com',projectId:'smash-tournament-7d620',storageBucket:'smash-tournament-7d620.firebasestorage.app',messagingSenderId:'883349497921',appId:'1:883349497921:web:40e3489325f0d1770c7ec0',measurementId:'G-JQLHX9GZK6'};
 const ADMIN_UID='yBn5daLPV2bQ3q8A4nJuzDgSRfO2';
@@ -641,11 +641,44 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden&&event.sta
 
 // Independent practice matches: all state lives under practiceMatches, never in tournament matches.
 const practiceRef=collection(db,'practiceMatches');
-let practiceId=sessionStorage.getItem('practiceMatchId')||'',practiceData=null,practiceUnsub=null;
+let practiceId=localStorage.getItem('practiceMatchId')||sessionStorage.getItem('practiceMatchId')||'',practiceData=null,practiceUnsub=null;
+let practiceWatchVersion=0,practiceLastSync=0,practiceSyncBusy=false,practiceRetryTimer=null;
 const practiceMsg=t=>{$('practiceMessage').textContent=t};
 const practiceCode=()=>Array.from(crypto.getRandomValues(new Uint8Array(4)),x=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[x%32]).join('');
 const practiceEsc=x=>esc(String(x??''));
-function practiceWatch(id){if(practiceUnsub)practiceUnsub();practiceId=id;sessionStorage.setItem('practiceMatchId',id);practiceUnsub=onSnapshot(doc(practiceRef,id),snap=>{practiceData=snap.exists()?{id:snap.id,...snap.data()}:null;practiceRender()});}
+function practiceStatus(t){let el=$('practiceSyncStatus');if(!el){el=document.createElement('div');el.id='practiceSyncStatus';el.className='small muted';$('practiceMessage').after(el)}el.textContent=t}
+function practiceApplySnapshot(snap,id){if(practiceId!==id)return;practiceData=snap.exists()?{id:snap.id,...snap.data()}:null;practiceLastSync=Date.now();practiceRender();practiceStatus(snap.metadata?.fromCache?'通信待機中（保存済みデータを表示）':'同期済み '+new Date().toLocaleTimeString('ja-JP'));}
+function practiceWatch(id){
+  id=(id||'').trim().toUpperCase();if(!id)return;
+  if(practiceUnsub){practiceUnsub();practiceUnsub=null}
+  if(practiceRetryTimer){clearTimeout(practiceRetryTimer);practiceRetryTimer=null}
+  const version=++practiceWatchVersion;
+  practiceId=id;localStorage.setItem('practiceMatchId',id);sessionStorage.setItem('practiceMatchId',id);
+  $('practiceCode').value=id;practiceStatus('接続中…');
+  practiceUnsub=onSnapshot(doc(practiceRef,id),{includeMetadataChanges:true},snap=>{
+    if(version!==practiceWatchVersion)return;
+    practiceApplySnapshot(snap,id);
+    if(!snap.exists()&&!snap.metadata.fromCache)practiceMsg('参加コードに対応する試合が見つかりません。');
+  },err=>{
+    if(version!==practiceWatchVersion)return;
+    console.warn('Practice listener error',err);practiceStatus('接続が切れました。再接続中…');
+    practiceRetryTimer=setTimeout(()=>{if(version===practiceWatchVersion)practiceWatch(id)},3500);
+  });
+}
+async function practiceRefresh(force=false){
+  if(!practiceId||practiceSyncBusy||(!force&&Date.now()-practiceLastSync<12000)||!navigator.onLine)return;
+  const id=practiceId;practiceSyncBusy=true;
+  try{const snap=await getDocFromServer(doc(practiceRef,id));practiceApplySnapshot(snap,id)}
+  catch(err){console.warn('Practice refresh failed',err);practiceStatus('通信待機中・自動再接続します')}
+  finally{practiceSyncBusy=false}
+}
+// LINEのアプリ内ブラウザでは復帰時にFirestoreの接続が停止する場合があるため、
+// 復帰・通信再開時にサーバーから再取得する。表示中も定期的に再同期する。
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)practiceRefresh(true)});
+window.addEventListener('pageshow',()=>practiceRefresh(true));
+window.addEventListener('focus',()=>practiceRefresh(true));
+window.addEventListener('online',()=>{practiceStatus('再接続中…');practiceRefresh(true)});
+setInterval(()=>{if(!document.hidden)practiceRefresh()},15000);
 function practiceActor(){const uid=currentUser?.uid;const d=practiceData;if(!d||!uid)return 0;if(d.p1Uid===uid&&d.p2Uid===uid)return 0;if(d.p1Uid===uid)return 1;if(d.p2Uid===uid)return 2;return 0}
 function practiceNames(d){return [d.p1Name||'未参加',d.p2Name||'未参加']}
 function practiceMapState(d){const game=d.game||1;return {phase:game===1?'p1ban':'winnerBan',available:[...(game===1?FIRST_MAPS:LATER_MAPS)],banned:[],selected:null,game}}
